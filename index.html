@@ -518,7 +518,7 @@
                 
                 // Colisão com o Player
                 let p = game.player;
-                if (!p.isDead()) {
+                if (!p.isDead() && p.state !== 'DASH') { // CORREÇÃO: Projéteis ignoram o jogador se estiver dando Dash (I-Frames)
                     let dist = Utils.dist(this.x, this.y, p.x + p.w/2, p.y + p.h/2);
                     if (dist < this.size + p.w/2) {
                         p.takeDamage(this.damage, this.x, this.y, true); // true = Pode fazer Parry
@@ -731,7 +731,7 @@
             }
 
             takeDamage(amount, sourceX, sourceY, canBeParried = true) {
-                if (this.isDead()) return;
+                if (this.isDead() || this.state === 'DASH') return; // CORREÇÃO DE BUG: I-Frames ativos durante o Dash! Dano ignorado.
 
                 let dmg = amount;
                 let parried = false;
@@ -1145,14 +1145,27 @@
                 let phaseMult = 1 + (game.currentPhase * 0.1);
                 baseDmg = Math.floor(baseDmg * phaseMult);
 
-                let attackRange = this.w + 30;
-                let dist = Utils.dist(this.x, this.y, game.player.x, game.player.y);
+                // --- NOVA LÓGICA DE COLISÃO RIGOROSA E HITBOX RETANGULAR ---
+                let hitRange = this.type === 'boss' ? this.w * 0.5 : (this.type === 'tank' ? 45 : 30);
+                let hitHeight = this.type === 'boss' ? this.h * 0.6 : (this.type === 'tank' ? 50 : 20);
+                let hitY = this.y + (this.h - hitHeight) / 2;
                 
-                // Frontal check (Ninja attacks 3 directions, so skip frontal check)
-                let playerInFront = isNinjaTriple || ((this.dirX > 0 && game.player.x > this.x - 20) || (this.dirX < 0 && game.player.x < this.x + this.w + 20));
+                let hitbox;
+                if (isNinjaTriple) {
+                    // Ninja atinge uma área ampla ao redor
+                    hitbox = { x: this.x - 20, y: this.y - 20, w: this.w + 40, h: this.h + 40 };
+                } else {
+                    // Outros inimigos atingem uma caixa exatamente à frente deles
+                    let hx = this.dirX > 0 ? this.x + this.w : this.x - hitRange;
+                    hitbox = { x: hx, y: hitY, w: hitRange, h: hitHeight };
+                }
 
-                if (dist < attackRange && playerInFront) {
-                    game.player.takeDamage(baseDmg, this.x, this.y);
+                let p = game.player;
+                let pRect = { x: p.x, y: p.y, w: p.w, h: p.h };
+
+                // Verifica colisão precisa de retângulos (Ignora acertos fantasmas)
+                if (Utils.rectIntersect(hitbox, pRect)) {
+                    p.takeDamage(baseDmg, this.x, this.y);
                 }
 
                 if (this.multiHitCount > 0) this.multiHitCount--;
@@ -1318,8 +1331,13 @@
                         if (this.dirX > 0) ctx.fillRect(this.x+this.w, this.y, 20, this.h);
                         else ctx.fillRect(this.x-20, this.y, 20, this.h);
                     } else {
-                        if (this.dirX > 0) ctx.fillRect(this.x + this.w, this.y + 10, 30, 20);
-                        else ctx.fillRect(this.x - 30, this.y + 10, 30, 20);
+                        // O visual agora condiz EXATAMENTE com a hitbox de ataque implementada
+                        let hitRange = this.type === 'boss' ? this.w * 0.5 : (this.type === 'tank' ? 45 : 30);
+                        let hitHeight = this.type === 'boss' ? this.h * 0.6 : (this.type === 'tank' ? 50 : 20);
+                        let hitY = this.y + (this.h - hitHeight) / 2;
+                        
+                        if (this.dirX > 0) ctx.fillRect(this.x + this.w, hitY, hitRange, hitHeight);
+                        else ctx.fillRect(this.x - hitRange, hitY, hitRange, hitHeight);
                     }
                 }
             }
