@@ -445,11 +445,94 @@
             }
         }
 
-        /**
-         * ==========================================
-         * ENTITIES
-         * ==========================================
-         */
+        // NOVA CLASSE: Sistema de Projéteis para Pedras e Bolas de Fogo
+        class Projectile {
+            constructor(type, x, y, tx, ty, damage, currentPhase) {
+                this.type = type;
+                this.x = x; this.y = y;
+                let angle = Math.atan2(ty - y, tx - x);
+                
+                if (type === 'fireball') {
+                    this.speed = 350 + (currentPhase * 10);
+                    this.size = 15;
+                    this.life = 5.0;
+                } else if (type === 'boulder') {
+                    this.speed = 130 + (currentPhase * 5); // Muito Lento
+                    this.size = 28;
+                    this.life = 8.0;
+                }
+                
+                this.vx = Math.cos(angle) * this.speed;
+                this.vy = Math.sin(angle) * this.speed;
+                this.damage = damage;
+                this.rotation = 0;
+            }
+            
+            update(dt) {
+                this.x += this.vx * dt;
+                this.y += this.vy * dt;
+                this.life -= dt;
+                
+                // Efeitos de Rastro do projétil
+                if (this.type === 'fireball') {
+                    game.particles.push(new Particle(this.x, this.y, '#ff4400', 50, 4, 0.3));
+                    game.particles.push(new Particle(this.x, this.y, '#ffff00', 30, 2, 0.2));
+                } else if (this.type === 'boulder') {
+                    this.rotation += dt * 3; // Rotação da pedra
+                    if (Math.random() < 0.4) {
+                        game.particles.push(new Particle(this.x, this.y + this.size*0.8, '#666', 30, 4, 0.4)); // Rastro de poeira
+                    }
+                }
+                
+                // Colisão com o Player
+                let p = game.player;
+                if (!p.isDead()) {
+                    let dist = Utils.dist(this.x, this.y, p.x + p.w/2, p.y + p.h/2);
+                    if (dist < this.size + p.w/2) {
+                        p.takeDamage(this.damage, this.x, this.y, true); // true = Pode fazer Parry
+                        this.life = 0; // Destrói no impacto
+                        game.screenShake(this.type === 'boulder' ? 25 : 10);
+                        
+                        let pColor = this.type === 'boulder' ? '#888' : '#ffaa00';
+                        for(let i=0; i<25; i++) {
+                            game.particles.push(new Particle(this.x, this.y, pColor, 250, 4, 0.5));
+                        }
+                    }
+                }
+            }
+            
+            draw(ctx) {
+                if (this.type === 'fireball') {
+                    ctx.save();
+                    ctx.globalAlpha = 1.0;
+                    ctx.fillStyle = '#ff3300';
+                    ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = '#ffff00';
+                    ctx.beginPath(); ctx.arc(this.x, this.y, this.size*0.6, 0, Math.PI*2); ctx.fill();
+                    ctx.restore();
+                } else if (this.type === 'boulder') {
+                    ctx.save();
+                    ctx.translate(this.x, this.y);
+                    ctx.rotate(this.rotation);
+                    
+                    // Corpo rochoso
+                    ctx.fillStyle = '#555';
+                    ctx.beginPath(); ctx.arc(0, 0, this.size, 0, Math.PI*2); ctx.fill();
+                    
+                    // Texturas da pedra (crateras)
+                    ctx.fillStyle = '#333';
+                    ctx.beginPath(); ctx.arc(-this.size*0.3, -this.size*0.3, this.size*0.25, 0, Math.PI*2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(this.size*0.4, this.size*0.1, this.size*0.3, 0, Math.PI*2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(-this.size*0.1, this.size*0.4, this.size*0.2, 0, Math.PI*2); ctx.fill();
+                    
+                    ctx.strokeStyle = '#222';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.arc(0, 0, this.size, 0, Math.PI*2); ctx.stroke();
+                    ctx.restore();
+                }
+            }
+        }
+
         class Entity {
             constructor(x, y, w, h, hp) {
                 this.x = x; this.y = y; this.w = w; this.h = h;
@@ -471,7 +554,7 @@
             constructor() {
                 super(GAME_WIDTH / 2, GAME_HEIGHT / 2, 40, 40, 100);
                 this.speed = 300; // pixels por segundo (aprox 5.0 px/frame)
-                this.color = 'var(--primary)';
+                this.color = '#00ffcc'; // Fix: Usando Hex para renderizar sem bugs no Canvas
                 this.attackCooldown = 0;
                 this.defendCooldown = 0;
                 this.combo = 0;
@@ -675,18 +758,28 @@
                 this.attackCooldown = 0;
                 this.regenTimer = 0;
                 
-                // Configurar Perfis Hardcore
-                if(type === 'basic') { this.color='var(--basic)'; this.speed=150; this.maxAttackCD=2.2; this.w=40; this.h=40; }
-                if(type === 'fast')  { this.color='var(--fast)'; this.speed=270; this.maxAttackCD=0.6; this.w=35; this.h=35; }
-                if(type === 'tank')  { this.color='var(--tank)'; this.speed=132; this.maxAttackCD=2.8; this.w=50; this.h=50; }
-                if(type === 'ninja') { this.color='var(--ninja)'; this.speed=210; this.maxAttackCD=0.5; this.w=35; this.h=35; }
-                if(type === 'boss')  { this.color='var(--boss)'; this.speed=120; this.maxAttackCD=2.2; this.w=60; this.h=60; }
+                // Configurar Perfis Hardcore com Cores em Hexadecimal (Fix para Canvas)
+                if(type === 'basic') { this.color='#ffff00'; this.speed=150; this.maxAttackCD=2.2; this.w=40; this.h=40; }
+                if(type === 'fast')  { this.color='#ff00ff'; this.speed=270; this.maxAttackCD=0.6; this.w=35; this.h=35; }
+                if(type === 'tank')  { this.color='#8888aa'; this.speed=132; this.maxAttackCD=2.8; this.w=50; this.h=50; }
+                if(type === 'ninja') { this.color='#440066'; this.speed=210; this.maxAttackCD=0.5; this.w=35; this.h=35; }
+                if(type === 'boss')  { this.color='#ffd700'; this.speed=120; this.maxAttackCD=2.2; this.w=60; this.h=60; }
 
                 if (game.currentPhase === 5 && type === 'tank') this.speed = 100; // Ajuste fino Fase 6
 
                 this.bossPhase = 1;
                 this.multiHitCount = 0;
                 this.isBlocking = false;
+                
+                // Variáveis para Efeitos Visuais (Auras)
+                this.trail = [];
+                this.auraParticles = [];
+
+                // Variáveis de Projéteis e Tamanho
+                this.boulderTimer = 0;
+                this.fireballTimer = 0;
+                this.targetW = this.w;
+                this.targetH = this.h;
             }
 
             update(dt) {
@@ -728,6 +821,48 @@
                 } 
                 else {
                     this.processAILogic(dt);
+                }
+
+                // Gerenciar Efeitos de Aura/Trail
+                if (this.type === 'fast') {
+                    this.trail.push({x: this.x, y: this.y});
+                    if (this.trail.length > 6) this.trail.shift();
+                }
+
+                // Aumentar Tamanho e Modificar Aura do Boss na Fase 3
+                if (this.type === 'boss') {
+                    if (this.bossPhase === 3) {
+                        this.targetW = 90;
+                        this.targetH = 90;
+                    } else {
+                        this.targetW = 60;
+                        this.targetH = 60;
+                    }
+                    // Interpolação de inchaço gradual
+                    this.w += (this.targetW - this.w) * dt * 3;
+                    this.h += (this.targetH - this.h) * dt * 3;
+                }
+
+                if (this.type === 'ninja' || this.type === 'boss') {
+                    let isDyingBoss = this.type === 'boss' && this.bossPhase === 3;
+                    let spawnChance = this.type === 'boss' ? (isDyingBoss ? 0.9 : 0.4) : 0.3; // Mais partículas e desespero
+                    
+                    if (Math.random() < spawnChance) {
+                        this.auraParticles.push({
+                            x: this.x + Math.random() * this.w,
+                            y: this.y + this.h,
+                            vx: (Math.random() - 0.5) * (this.type === 'boss' ? (isDyingBoss ? 120 : 80) : 30),
+                            vy: -Math.random() * (this.type === 'boss' ? (isDyingBoss ? 180 : 120) : 60),
+                            life: 1.0
+                        });
+                    }
+                    for (let i = this.auraParticles.length - 1; i >= 0; i--) {
+                        let p = this.auraParticles[i];
+                        p.x += p.vx * dt;
+                        p.y += p.vy * dt;
+                        p.life -= dt * (this.type === 'boss' ? (isDyingBoss ? 1.2 : 1.8) : 2.0); // Fogo sobe muito mais agitado
+                        if (p.life <= 0) this.auraParticles.splice(i, 1);
+                    }
                 }
 
                 this.applyPhysics(dt);
@@ -801,6 +936,15 @@
                 // IA PROFILE 3: TANK (Lento, Multi-hit)
                 // ==========================================
                 else if (this.type === 'tank') {
+                    // Lançamento de Pedras Pesadas
+                    this.boulderTimer += dt;
+                    if (this.boulderTimer > 6.0 && dist < 700) {
+                        this.boulderTimer = 0;
+                        let boulderDmg = Math.floor(Utils.random(30, 45) * (1 + game.currentPhase * 0.1)); // Dano destrutivo
+                        game.projectiles.push(new Projectile('boulder', this.x + this.w/2, this.y + this.h/2, p.x + p.w/2, p.y + p.h/2, boulderDmg, game.currentPhase));
+                        game.spawnFloatingText(this.x + this.w/2, this.y - 20, "PEDREGULHO!", "#8888aa");
+                    }
+
                     if (dist < 90 && this.attackCooldown <= 0) {
                         this.startAttack(this.aiTimer > 12 ? 3 : 1);
                         if (this.aiTimer > 12) this.aiTimer = 0; // reseta especial
@@ -846,6 +990,16 @@
                     // Update Phase logic
                     if (this.hp < 40) this.bossPhase = 3;
                     else if (this.hp < 80) this.bossPhase = 2;
+
+                    // Lançamento de Bolas de Fogo Ardentes
+                    this.fireballTimer += dt;
+                    let fireRate = this.bossPhase === 3 ? 2.5 : 5.0; // Desespero Atira mais rápido
+                    if (this.fireballTimer > fireRate) {
+                        this.fireballTimer = 0;
+                        let fireDmg = Math.floor(Utils.random(15, 20) * (1 + game.currentPhase * 0.1));
+                        game.projectiles.push(new Projectile('fireball', this.x + this.w/2, this.y + this.h/2, p.x + p.w/2, p.y + p.h/2, fireDmg, game.currentPhase));
+                        if (this.bossPhase === 3) game.spawnFloatingText(this.x + this.w/2, this.y - 20, "CHAMAS!", "#ff3300");
+                    }
 
                     let activeSpeed = this.bossPhase === 1 ? 120 : (this.bossPhase === 2 ? 210 : 270);
                     this.isBlocking = this.bossPhase === 3;
@@ -943,6 +1097,77 @@
             draw(ctx) {
                 if (this.isDead()) return;
 
+                // --- EFEITOS VISUAIS DE AURA ---
+                if (this.type === 'basic') {
+                    // Aura pulsante de energia pura
+                    ctx.save();
+                    ctx.globalAlpha = 0.2 + Math.sin(performance.now() * 0.005) * 0.1;
+                    ctx.fillStyle = this.color;
+                    ctx.beginPath();
+                    ctx.ellipse(this.x + this.w/2, this.y + this.h, this.w * 0.8, this.h * 0.4, 0, 0, Math.PI*2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+                else if (this.type === 'fast') {
+                    // Aura de Vento/Velocidade (Trail effect)
+                    this.trail.forEach((t, i) => {
+                        ctx.globalAlpha = (i / this.trail.length) * 0.4;
+                        ctx.fillStyle = '#00ffff'; // Vento ciano
+                        ctx.fillRect(t.x, t.y, this.w, this.h);
+                    });
+                    ctx.globalAlpha = 1.0;
+                }
+                else if (this.type === 'tank') {
+                    // Aura de Gelo/Pedra (Escudo rotativo)
+                    ctx.save();
+                    ctx.translate(this.x + this.w/2, this.y + this.h/2);
+                    ctx.rotate(this.aiTimer * 1.5);
+                    ctx.strokeStyle = '#88ccff'; // Cor de gelo
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([8, 6]);
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.w * 0.7 + Math.sin(this.aiTimer * 5) * 5, 0, Math.PI*2);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+                else if (this.type === 'ninja') {
+                    // Aura de Sombras / Fumaça Negra
+                    ctx.save();
+                    this.auraParticles.forEach(p => {
+                        ctx.globalAlpha = Math.max(0, p.life * 0.6);
+                        ctx.fillStyle = '#110022'; // Sombra escura
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, this.w * 0.35, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+                    ctx.restore();
+                }
+                else if (this.type === 'boss') {
+                    // Aura de Fogo Divino e Ofegante
+                    ctx.save();
+                    let isDying = this.bossPhase === 3;
+                    
+                    if (isDying) {
+                        // Pulso central ardente de fogo
+                        let pulse = Math.sin(performance.now() * 0.015) * 0.15 + 0.85;
+                        ctx.globalAlpha = 0.4 * pulse;
+                        ctx.fillStyle = '#ff1100';
+                        ctx.beginPath();
+                        ctx.ellipse(this.x + this.w/2, this.y + this.h/2, this.w * 0.7 * pulse, this.h * 0.7 * pulse, 0, 0, Math.PI*2);
+                        ctx.fill();
+                    }
+
+                    this.auraParticles.forEach(p => {
+                        ctx.globalAlpha = Math.max(0, p.life);
+                        ctx.fillStyle = p.life > 0.6 ? '#ffff00' : (p.life > 0.3 ? '#ff6600' : '#ff0000');
+                        if (isDying && p.life < 0.2) ctx.fillStyle = '#ffffff'; // Ponta branca extremamente quente
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, this.w * (isDying ? 0.35 : 0.25) * p.life, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+                    ctx.restore();
+                }
+
                 // Shadow
                 ctx.fillStyle = 'rgba(0,0,0,0.5)';
                 ctx.beginPath(); ctx.ellipse(this.x + this.w/2, this.y + this.h, this.w/2, 10, 0, 0, Math.PI*2); ctx.fill();
@@ -1007,6 +1232,7 @@
             enemies: [],
             particles: [],
             floatingTexts: [],
+            projectiles: [], // ADICIONADO ARRAY DE PROJÉTEIS
             currentPhase: 1,
             shakeTime: 0,
             lastTime: 0,
@@ -1071,6 +1297,7 @@
                 this.enemies = [];
                 this.particles = [];
                 this.floatingTexts = [];
+                this.projectiles = []; // Reseta na troca de fase
                 
                 this.player.maxHp = pData.pHP;
                 this.player.hp = pData.pHP;
@@ -1123,6 +1350,12 @@
                 // Update counter on the fly if needed, but better to just set it on kill inside takeDamage
                 document.getElementById('enemy-counter').innerText = `Inimigos restantes: ${aliveCount}`;
 
+                // Atualizar Projéteis Livres
+                for (let i = this.projectiles.length - 1; i >= 0; i--) {
+                    this.projectiles[i].update(dt);
+                    if (this.projectiles[i].life <= 0) this.projectiles.splice(i, 1);
+                }
+
                 // Next Phase logic
                 if (aliveCount === 0 && this.enemies.length > 0) {
                     this.enemies = []; 
@@ -1156,10 +1389,17 @@
                     this.shakeTime--;
                 }
 
-                // Sorting to draw properly
-                let renderList = [this.player, ...this.enemies].sort((a, b) => (a.y+a.h) - (b.y+b.h));
+                // Sorting 3D com Projéteis Inclusos
+                let renderList = [this.player, ...this.enemies, ...this.projectiles].sort((a, b) => {
+                    let hA = a.h || (a.size * 2) || 0;
+                    let hB = b.h || (b.size * 2) || 0;
+                    return (a.y + hA) - (b.y + hB);
+                });
+                
                 renderList.forEach(ent => {
-                    if (ent.isDead() && !ent.isPlayer) {
+                    if (ent instanceof Projectile) {
+                        ent.draw(ctx);
+                    } else if (ent.isDead() && !ent.isPlayer) {
                         ctx.globalAlpha = 0.2;
                         ctx.save(); ctx.translate(ent.x + ent.w/2, ent.y + ent.h); ctx.scale(1, 0.2); 
                         ent.x = -ent.w/2; ent.y = -ent.h; ent.draw(ctx);
