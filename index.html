@@ -79,6 +79,24 @@
             transition: width 0.1s, background-color 0.3s;
         }
 
+        /* NOVA BARRA DE STAMINA PARA O DASH */
+        .stamina-bar-container {
+            width: 300px;
+            height: 8px;
+            background: #222;
+            border: 1px solid #555;
+            border-radius: 3px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .stamina-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0066ff, #00ccff);
+            width: 100%;
+            transition: width 0.1s;
+        }
+
         .health-text {
             position: absolute;
             width: 100%;
@@ -266,6 +284,9 @@
                     <div id="hp-fill" class="health-bar-fill"></div>
                     <div id="hp-text" class="health-text">100 / 100</div>
                 </div>
+                <div class="stamina-bar-container">
+                    <div id="stamina-fill" class="stamina-bar-fill"></div>
+                </div>
             </div>
             <div id="phase-display" class="phase-counter">Fase 1/8</div>
             <div id="enemy-counter" class="enemy-counter">Inimigos: 0</div>
@@ -287,7 +308,8 @@
                 <ul>
                     <li><kbd>WASD</kbd> ou <kbd>Setas</kbd> Movimentar</li>
                     <li><kbd>Espaço</kbd> Atacar</li>
-                    <li><kbd>E</kbd> Defender / Parry (reduz 50%)</li>
+                    <li><kbd>E</kbd> / <kbd>Click</kbd> / <kbd>Enter</kbd> Defender</li>
+                    <li><kbd>Shift</kbd> Dash (Consome Stamina)</li>
                     <li><kbd>ESC</kbd> Pausar Jogo</li>
                 </ul>
             </div>
@@ -368,10 +390,13 @@
             else if (gameState === "GAMEPLAY") {
                 if (key === "R") return; // CRÍTICO: R IGNORADO COMPLETAMENTE
                 
-                if (key === "E" && !game.player.isDead()) game.player.defend();
+                if ((key === "E" || key === "ENTER") && !game.player.isDead()) game.player.defend();
                 if ((key === " " || e.code === "Space") && !game.player.isDead()) {
                     game.player.attack();
                     e.preventDefault();
+                }
+                if (key === "SHIFT" && !game.player.isDead()) {
+                    game.player.dash();
                 }
                 if (key === "ESCAPE") {
                     gameState = "PAUSED";
@@ -395,6 +420,13 @@
         document.addEventListener('keyup', (e) => {
             let key = e.key.toUpperCase();
             delete keysPressed[key];
+        });
+
+        // ADICIONADO: Evento de Mouse para Defesa
+        document.addEventListener('mousedown', (e) => {
+            if (gameState === "GAMEPLAY" && e.button === 0) { // Botão Esquerdo
+                if (!game.player.isDead()) game.player.defend();
+            }
         });
 
         // Utils
@@ -559,6 +591,33 @@
                 this.defendCooldown = 0;
                 this.combo = 0;
                 this.comboTimer = 0;
+                
+                // Sistema de Stamina e Dash
+                this.maxStamina = 100;
+                this.stamina = 100;
+            }
+
+            dash() {
+                if (this.stamina >= 25 && this.state !== 'DASH' && this.state !== 'DEFEND') {
+                    this.stamina -= 25; // 4 dashes cravados com barra de 100
+                    this.state = 'DASH';
+                    this.stateTimer = 0;
+                    
+                    let dx = 0, dy = 0;
+                    if (keysPressed["W"] || keysPressed["ARROWUP"]) dy -= 1;
+                    if (keysPressed["S"] || keysPressed["ARROWDOWN"]) dy += 1;
+                    if (keysPressed["A"] || keysPressed["ARROWLEFT"]) dx -= 1;
+                    if (keysPressed["D"] || keysPressed["ARROWRIGHT"]) dx += 1;
+
+                    if (dx === 0 && dy === 0) { dx = this.dirX; dy = this.dirY; }
+                    
+                    let len = Math.sqrt(dx*dx + dy*dy);
+                    this.vx = (dx/len) * 900; // Velocidade extrema de fuga
+                    this.vy = (dy/len) * 900;
+                    
+                    // Efeito de partículas do Dash
+                    for(let i=0; i<8; i++) game.particles.push(new Particle(this.x+20, this.y+20, '#0088ff', 150, 3, 0.4));
+                }
             }
 
             update(dt) {
@@ -571,6 +630,12 @@
                     if (this.comboTimer <= 0) this.combo = 0;
                 }
 
+                // Recarrega Stamina Lentamente
+                if (this.stamina < this.maxStamina) {
+                    this.stamina += 15 * dt; // Demora aprox 6.6s pra ir de 0 a 100
+                    if (this.stamina > this.maxStamina) this.stamina = this.maxStamina;
+                }
+
                 // Handle States
                 if (this.state === 'HURT') {
                     if (this.stateTimer > 0.2) this.state = 'IDLE';
@@ -580,6 +645,10 @@
                     if (this.stateTimer > 0.3) {
                         this.state = 'IDLE';
                         this.defendCooldown = 0.3; // E MUST cool down
+                    }
+                } else if (this.state === 'DASH') {
+                    if (this.stateTimer > 0.2) {
+                        this.state = 'IDLE'; // Dash dura 200ms
                     }
                 } else {
                     // Read movement from Map (WASD and Arrows combined)
@@ -637,6 +706,19 @@
                     if (!e.isDead() && Utils.rectIntersect(hitbox, e)) {
                         e.takeDamage(baseDmg, this.x, this.y, isCombo);
                         game.stats.dmg += baseDmg;
+
+                        // MECÂNICA DE SER REPELIDO AO BATER EM INIMIGO BLOQUEANDO
+                        if (e.isBlocking) {
+                            let repelForce = (e.type === 'tank' || e.type === 'boss') ? 800 : 300;
+                            let angle = Math.atan2(this.y - e.y, this.x - e.x);
+                            this.vx = Math.cos(angle) * repelForce;
+                            this.vy = Math.sin(angle) * repelForce;
+                            
+                            this.state = 'HURT'; // Stuna o jogador por um momento
+                            this.stateTimer = 0;
+                            game.spawnFloatingText(this.x+20, this.y, "REPELIDO!", "#ffff00");
+                            game.screenShake(8);
+                        }
                     }
                 });
             }
@@ -708,6 +790,10 @@
                 else fill.style.background = 'linear-gradient(90deg, #cc0000, #ff3333)';
                 
                 document.getElementById('hp-text').innerText = `${Math.floor(this.hp)} / ${this.maxHp}`;
+
+                // Atualizar barra de Stamina
+                let stPct = Math.max(0, this.stamina / this.maxStamina);
+                document.getElementById('stamina-fill').style.width = `${stPct * 100}%`;
             }
 
             draw(ctx) {
@@ -761,15 +847,16 @@
                 // Configurar Perfis Hardcore com Cores em Hexadecimal (Fix para Canvas)
                 if(type === 'basic') { this.color='#ffff00'; this.speed=150; this.maxAttackCD=2.2; this.w=40; this.h=40; }
                 if(type === 'fast')  { this.color='#ff00ff'; this.speed=270; this.maxAttackCD=0.6; this.w=35; this.h=35; }
-                if(type === 'tank')  { this.color='#8888aa'; this.speed=132; this.maxAttackCD=2.8; this.w=50; this.h=50; }
+                if(type === 'tank')  { this.color='#8888aa'; this.speed=132; this.maxAttackCD=2.8; this.w=85; this.h=85; } // Tamanho do Tanque aumentado para 85x85
                 if(type === 'ninja') { this.color='#440066'; this.speed=210; this.maxAttackCD=0.5; this.w=35; this.h=35; }
-                if(type === 'boss')  { this.color='#ffd700'; this.speed=120; this.maxAttackCD=2.2; this.w=60; this.h=60; }
+                if(type === 'boss')  { this.color='#ffd700'; this.speed=120; this.maxAttackCD=2.2; this.w=90; this.h=90; } // Tamanho padrão do Boss aumentado
 
                 if (game.currentPhase === 5 && type === 'tank') this.speed = 100; // Ajuste fino Fase 6
 
                 this.bossPhase = 1;
                 this.multiHitCount = 0;
                 this.isBlocking = false;
+                this.blockTimer = 0; // Adicionado para controle do Básico/Rápido
                 
                 // Variáveis para Efeitos Visuais (Auras)
                 this.trail = [];
@@ -788,6 +875,14 @@
                 this.stateTimer += dt;
                 this.aiTimer += dt;
                 if (this.attackCooldown > 0) this.attackCooldown -= dt;
+
+                // Controle temporário de bloqueio para o Básico e Rápido
+                if (this.blockTimer > 0) {
+                    this.blockTimer -= dt;
+                    if (this.blockTimer <= 0 && (this.type === 'basic' || this.type === 'fast')) {
+                        this.isBlocking = false;
+                    }
+                }
 
                 // Regeneração (Tanque e Boss)
                 if (this.type === 'tank' || this.type === 'boss') {
@@ -832,11 +927,11 @@
                 // Aumentar Tamanho e Modificar Aura do Boss na Fase 3
                 if (this.type === 'boss') {
                     if (this.bossPhase === 3) {
-                        this.targetW = 90;
-                        this.targetH = 90;
+                        this.targetW = 140; // Fica GIGANTE com raiva
+                        this.targetH = 140;
                     } else {
-                        this.targetW = 60;
-                        this.targetH = 60;
+                        this.targetW = 90; // Novo tamanho padrão
+                        this.targetH = 90;
                     }
                     // Interpolação de inchaço gradual
                     this.w += (this.targetW - this.w) * dt * 3;
@@ -1044,7 +1139,7 @@
                 if (this.type === 'basic') baseDmg = Utils.random(10, 12);
                 else if (this.type === 'fast') baseDmg = Utils.random(10, 14); // Atualizado para fase 4+
                 else if (this.type === 'tank') baseDmg = this.multiHitCount === 0 && this.maxAttackCD === 2.8 ? 18 : Utils.random(16, 20); // Last hit of special is stronger
-                else if (this.type === 'ninja') { baseDmg = Utils.random(13, 17); isNinjaTriple = true; }
+                else if (this.type === 'ninja') { baseDmg = Utils.random(18, 24); isNinjaTriple = true; } // BUFF DE DANO DO NINJA FASE 7
                 else if (this.type === 'boss') baseDmg = Utils.random(15, 18);
 
                 let phaseMult = 1 + (game.currentPhase * 0.1);
@@ -1065,6 +1160,14 @@
 
             takeDamage(amount, sourceX, sourceY, isCrit = false) {
                 if (this.isDead()) return;
+
+                // Pequena chance de Basic e Fast tentarem bloquear ao receber golpes frontais
+                if ((this.type === 'basic' || this.type === 'fast') && !this.isBlocking && (this.state === 'IDLE' || this.state === 'RUN')) {
+                    if (Math.random() < 0.20) { // 20% de chance
+                        this.isBlocking = true;
+                        this.blockTimer = 0.5;
+                    }
+                }
 
                 let dmg = amount;
                 if (this.isBlocking) {
@@ -1192,9 +1295,9 @@
                 ctx.fillRect(this.x + ex, this.y + this.h*0.2, this.w*0.15, this.w*0.15);
                 ctx.fillRect(this.x + ex, this.y + this.h*0.5, this.w*0.15, this.w*0.15);
 
-                // Tank Block Shield
+                // Escudo Visual para Inimigos Bloqueando
                 if (this.isBlocking) {
-                    ctx.strokeStyle = 'rgba(136, 136, 170, 0.5)';
+                    ctx.strokeStyle = this.type === 'tank' ? 'rgba(136, 136, 170, 0.5)' : 'rgba(255, 255, 255, 0.6)';
                     ctx.lineWidth = 3;
                     ctx.strokeRect(this.x-5, this.y-5, this.w+10, this.h+10);
                 }
@@ -1246,7 +1349,7 @@
                 { id: 4, pHP: 95, title: "Fase 4: Caos", desc: "Mantenha um sempre entre você e o outro.", spawn: () => [new Enemy('fast', 300, 100, 32), new Enemy('fast', 1000, 600, 32)] },
                 { id: 5, pHP: 100, title: "Fase 5: O Tanque", desc: "Ataques lentos mas regenera vida. Acumule dano.", spawn: () => [new Enemy('tank', 1000, 360, 75)] },
                 { id: 6, pHP: 90, title: "Fase 6: O Inferno", desc: "Isole o Tanque dos Rápidos.", spawn: () => [new Enemy('tank', 900, 360, 75), new Enemy('fast', 400, 100, 34), new Enemy('fast', 400, 600, 34)] },
-                { id: 7, pHP: 100, title: "Fase 7: O Fantasma", desc: "Ele teletransporta para suas costas. Reaja!", spawn: () => [new Enemy('ninja', 1000, 360, 28)] },
+                { id: 7, pHP: 100, title: "Fase 7: O Fantasma", desc: "Ele teletransporta para suas costas. Reaja!", spawn: () => [new Enemy('ninja', 1000, 360, 50)] }, // HP DO NINJA AUMENTADO PARA 50 (Buff Fase 7)
                 { id: 8, pHP: 100, title: "Supremacia", desc: "Ele aprende. Mude sua estratégia a cada 40 de HP.", spawn: () => [new Enemy('boss', 1000, 360, 120)] }
             ],
 
