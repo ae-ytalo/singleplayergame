@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Arena de Espadas 2D</title>
+    <title>Arena de Espadas 2D - Hardcore</title>
     <style>
         :root {
             --primary: #00ffcc;
-            --enemy: #ff3366;
-            --boss: #ff9900;
-            --ninja: #9900ff;
+            --basic: #ffff00;
+            --fast: #ff00ff;
+            --tank: #8888aa;
+            --ninja: #440066;
+            --boss: #ffd700;
             --bg: #1a1a24;
             --panel: rgba(10, 10, 15, 0.85);
         }
@@ -61,11 +63,11 @@
         }
 
         .health-bar-container {
-            width: 250px;
-            height: 20px;
-            background: #333;
+            width: 300px;
+            height: 25px;
+            background: #222;
             border: 2px solid #555;
-            border-radius: 10px;
+            border-radius: 5px;
             overflow: hidden;
             position: relative;
         }
@@ -74,26 +76,33 @@
             height: 100%;
             background: linear-gradient(90deg, #00cc00, #00ffcc);
             width: 100%;
-            transition: width 0.1s;
+            transition: width 0.1s, background-color 0.3s;
         }
 
         .health-text {
             position: absolute;
             width: 100%;
             text-align: center;
-            font-size: 12px;
+            font-size: 14px;
             font-weight: bold;
-            line-height: 16px;
+            line-height: 25px;
             color: white;
             text-shadow: 1px 1px 2px black;
         }
 
         .phase-counter {
-            font-size: 24px;
+            font-size: 28px;
             font-weight: bold;
             color: #fff;
             text-shadow: 0 0 10px var(--primary);
             text-align: center;
+        }
+
+        .enemy-counter {
+            font-size: 18px;
+            color: #ccc;
+            text-align: right;
+            width: 250px;
         }
 
         /* Screens */
@@ -107,7 +116,7 @@
             align-items: center;
             z-index: 10;
             backdrop-filter: blur(5px);
-            transition: opacity 0.3s;
+            transition: opacity 0.2s;
         }
 
         .hidden {
@@ -126,9 +135,10 @@
         }
 
         h2 {
-            font-size: 2.5rem;
+            font-size: 3rem;
             margin-bottom: 20px;
-            color: var(--enemy);
+            color: #ff3366;
+            text-shadow: 0 0 15px #ff3366;
         }
 
         p {
@@ -175,10 +185,6 @@
             gap: 15px;
         }
 
-        .controls-info li {
-            font-size: 1.1rem;
-        }
-
         kbd {
             background: #eee;
             color: #000;
@@ -188,25 +194,19 @@
             box-shadow: 0 2px 0 #999;
         }
 
-        /* Screen Shake effect */
         @keyframes shake {
             0% { transform: translate(1px, 1px) rotate(0deg); }
-            10% { transform: translate(-1px, -2px) rotate(-1deg); }
             20% { transform: translate(-3px, 0px) rotate(1deg); }
-            30% { transform: translate(3px, 2px) rotate(0deg); }
             40% { transform: translate(1px, -1px) rotate(1deg); }
-            50% { transform: translate(-1px, 2px) rotate(-1deg); }
             60% { transform: translate(-3px, 1px) rotate(0deg); }
-            70% { transform: translate(3px, 1px) rotate(-1deg); }
             80% { transform: translate(-1px, -1px) rotate(1deg); }
-            90% { transform: translate(1px, 2px) rotate(0deg); }
             100% { transform: translate(1px, -2px) rotate(-1deg); }
         }
         .shake { animation: shake 0.2s; }
 
         .phase-announcement {
             position: absolute;
-            top: 30%;
+            top: 25%;
             left: 50%;
             transform: translate(-50%, -50%);
             font-size: 3rem;
@@ -216,19 +216,22 @@
             pointer-events: none;
             transition: opacity 0.5s;
             text-align: center;
+            background: rgba(0,0,0,0.7);
+            padding: 20px 40px;
+            border-radius: 15px;
+            border: 1px solid var(--primary);
         }
 
         .show-announcement {
             opacity: 1;
-            animation: popIn 2s forwards;
+            animation: popIn 3s forwards;
         }
 
         @keyframes popIn {
-            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
-            20% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
-            30% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-            80% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-            100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+            0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
+            15% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            85% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.1); opacity: 0; }
         }
 
         .stats-grid {
@@ -239,12 +242,12 @@
             background: rgba(0,0,0,0.5);
             padding: 20px;
             border-radius: 10px;
+            border: 1px solid var(--boss);
         }
-        
         .stats-grid div {
             text-align: left;
             font-size: 1.2rem;
-            color: #0ff;
+            color: #fff;
         }
     </style>
 </head>
@@ -265,64 +268,69 @@
                 </div>
             </div>
             <div id="phase-display" class="phase-counter">Fase 1/8</div>
-            <div style="width: 250px;"></div> <!-- Spacer -->
+            <div id="enemy-counter" class="enemy-counter">Inimigos: 0</div>
         </div>
 
         <!-- Mensagem de Transição de Fase -->
         <div id="phase-announcement" class="phase-announcement">
             <div id="announcement-title">Fase 1</div>
-            <div id="announcement-desc" style="font-size: 1.5rem; color: #ccc; margin-top: 10px;"></div>
+            <div id="announcement-desc" style="font-size: 1.2rem; color: #ffcc00; margin-top: 10px;">Dica...</div>
         </div>
 
         <!-- Main Menu -->
         <div id="screen-menu" class="screen">
-            <h1>Lâmina & Reflexo</h1>
-            <p>Sobreviva a 8 arenas de combate intenso. Domine a esquiva e o aparo (parry) para vencer.</p>
+            <h1>Arena Hardcore</h1>
+            <p>8 fases brutais. Padrões de IA complexos. Apenas os reflexos perfeitos sobreviverão.</p>
             <button class="btn" onclick="game.start()">Iniciar Jogo</button>
             
             <div class="controls-info">
                 <ul>
-                    <li><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> Mover / Esquivar</li>
+                    <li><kbd>WASD</kbd> ou <kbd>Setas</kbd> Movimentar</li>
                     <li><kbd>Espaço</kbd> Atacar</li>
-                    <li><kbd>E</kbd> Defender / Parry</li>
-                    <li><kbd>R</kbd> Reiniciar Fase (se morrer)</li>
+                    <li><kbd>E</kbd> Defender / Parry (reduz 50%)</li>
+                    <li><kbd>ESC</kbd> Pausar Jogo</li>
                 </ul>
             </div>
         </div>
 
+        <!-- Pause Screen -->
+        <div id="screen-paused" class="screen hidden">
+            <h2 style="color: var(--primary);">JOGO PAUSADO</h2>
+            <p>Pressione ESC para retornar à batalha.</p>
+        </div>
+
         <!-- Game Over Screen -->
         <div id="screen-gameover" class="screen hidden">
-            <h2>Você Morreu</h2>
-            <p>Os inimigos foram mais rápidos desta vez.</p>
-            <button class="btn" onclick="game.restartPhase()">Tentar Novamente (R)</button>
+            <h2>VOCÊ MORREU</h2>
+            <p id="gameover-text">A arena cobrou seu preço na Fase X.</p>
+            <button class="btn" onclick="game.resetToMenu()">Retornar ao Menu (R)</button>
         </div>
 
         <!-- Victory Screen -->
         <div id="screen-victory" class="screen hidden">
-            <h1 style="color: #ffea00; text-shadow: 0 0 30px #ffea00;">Mestre das Lâminas</h1>
-            <p>Você sobreviveu a todas as fases e derrotou o Ninja Supremo!</p>
+            <h1 style="color: var(--boss); text-shadow: 0 0 30px var(--boss);">SUPREMACIA</h1>
+            <p>Você dominou todos os padrões e venceu a Arena Hardcore.</p>
             
             <div class="stats-grid">
-                <div id="stat-time">Tempo Total: 00:00</div>
-                <div id="stat-kills">Inimigos Derrotados: 0</div>
+                <div id="stat-time">Tempo: 00:00</div>
+                <div id="stat-kills">Abates: 0</div>
                 <div id="stat-parries">Parries Perfeitos: 0</div>
                 <div id="stat-dmg">Dano Causado: 0</div>
             </div>
 
-            <button class="btn" onclick="game.resetToMenu()">Voltar ao Menu</button>
+            <button class="btn" style="border-color: var(--boss); color: var(--boss);" onclick="game.resetToMenu()">Concluir (R)</button>
         </div>
 
     </div>
 
     <script>
         /**
-         * ENGINE CORE & UTILS
+         * ==========================================
+         * CORE ENGINE & STATE MANAGEMENT
+         * ==========================================
          */
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const uiLayer = document.getElementById('ui-layer');
-
-        // Virtual resolution para manter a lógica consistente (escala para caber na tela)
         const GAME_WIDTH = 1280;
         const GAME_HEIGHT = 720;
         let scale = 1;
@@ -330,300 +338,183 @@
         function resize() {
             const windowRatio = window.innerWidth / window.innerHeight;
             const gameRatio = GAME_WIDTH / GAME_HEIGHT;
-
-            if (windowRatio < gameRatio) {
-                scale = window.innerWidth / GAME_WIDTH;
-            } else {
-                scale = window.innerHeight / GAME_HEIGHT;
-            }
-
+            scale = windowRatio < gameRatio ? window.innerWidth / GAME_WIDTH : window.innerHeight / GAME_HEIGHT;
             canvas.width = GAME_WIDTH * scale;
             canvas.height = GAME_HEIGHT * scale;
             ctx.scale(scale, scale);
         }
-
         window.addEventListener('resize', resize);
         resize();
 
-        // Input Handling
-        const keys = {
-            ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false,
-            ' ': false, e: false, E: false, r: false, R: false
-        };
+        // STRICT STATE MACHINE (Prevenção de Bugs)
+        let gameState = "MENU"; // MENU, GAMEPLAY, PAUSED, GAME_OVER, VICTORY
+        let keysPressed = {};
 
-        const prevKeys = { ...keys };
+        // Input Listeners (WASD + Arrows Simplesmente unificados no objeto map)
+        document.addEventListener('keydown', (e) => {
+            let key = e.key.toUpperCase();
+            
+            // Movement keys always registered to prevent stuck keys
+            if (["W","A","S","D","ARROWUP","ARROWDOWN","ARROWLEFT","ARROWRIGHT"].includes(key)) {
+                keysPressed[key] = true;
+                if (gameState === "GAMEPLAY") e.preventDefault();
+            }
 
-        window.addEventListener('keydown', (e) => {
-            if (keys.hasOwnProperty(e.key) || keys.hasOwnProperty(e.key.toLowerCase())) {
-                keys[e.key === ' ' ? ' ' : e.key.toLowerCase()] = true;
-                keys[e.key] = true;
+            if (gameState === "MENU") {
+                if (e.code === "Enter" || e.code === "Space") {
+                    game.start();
+                }
+            } 
+            else if (gameState === "GAMEPLAY") {
+                if (key === "R") return; // CRÍTICO: R IGNORADO COMPLETAMENTE
                 
-                // Previne scroll da página com espaço ou setas
-                if(["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].indexOf(e.code) > -1) {
+                if (key === "E" && !game.player.isDead()) game.player.defend();
+                if ((key === " " || e.code === "Space") && !game.player.isDead()) {
+                    game.player.attack();
                     e.preventDefault();
+                }
+                if (key === "ESCAPE") {
+                    gameState = "PAUSED";
+                    document.getElementById('screen-paused').classList.remove('hidden');
+                }
+            } 
+            else if (gameState === "PAUSED") {
+                if (key === "ESCAPE") {
+                    gameState = "GAMEPLAY";
+                    document.getElementById('screen-paused').classList.add('hidden');
+                    game.lastTime = performance.now(); // Prevents huge delta time jump
+                }
+            } 
+            else if (gameState === "GAME_OVER" || gameState === "VICTORY") {
+                if (key === "R") {
+                    game.resetToMenu();
                 }
             }
         });
 
-        window.addEventListener('keyup', (e) => {
-            if (keys.hasOwnProperty(e.key) || keys.hasOwnProperty(e.key.toLowerCase())) {
-                keys[e.key === ' ' ? ' ' : e.key.toLowerCase()] = false;
-                keys[e.key] = false;
-            }
+        document.addEventListener('keyup', (e) => {
+            let key = e.key.toUpperCase();
+            delete keysPressed[key];
         });
 
-        function isJustPressed(key) {
-            const k = key.toLowerCase();
-            return keys[k] && !prevKeys[k];
-        }
-
-        function updateInputs() {
-            for (let k in keys) {
-                prevKeys[k] = keys[k];
-            }
-        }
-
-        // Math & Physics Utils
+        // Utils
         const Utils = {
             dist: (x1, y1, x2, y2) => Math.sqrt((x2-x1)**2 + (y2-y1)**2),
             clamp: (val, min, max) => Math.max(min, Math.min(max, val)),
-            rectIntersect: (r1, r2) => {
-                return !(r2.x > r1.x + r1.w || 
-                         r2.x + r2.w < r1.x || 
-                         r2.y > r1.y + r1.h ||
-                         r2.y + r2.h < r1.y);
-            },
+            rectIntersect: (r1, r2) => !(r2.x > r1.x + r1.w || r2.x + r2.w < r1.x || r2.y > r1.y + r1.h || r2.y + r2.h < r1.y),
             random: (min, max) => Math.random() * (max - min) + min
         };
 
         /**
-         * GAME ENTITIES
+         * ==========================================
+         * VISUAL EFFECTS
+         * ==========================================
          */
-        
         class Particle {
             constructor(x, y, color, speed, size, life) {
-                this.x = x;
-                this.y = y;
+                this.x = x; this.y = y;
                 this.vx = (Math.random() - 0.5) * speed;
                 this.vy = (Math.random() - 0.5) * speed;
-                this.color = color;
-                this.size = size;
-                this.life = life;
-                this.maxLife = life;
+                this.color = color; this.size = size;
+                this.life = life; this.maxLife = life;
             }
-            update(dt) {
-                this.x += this.vx;
-                this.y += this.vy;
-                this.life -= dt;
-            }
+            update(dt) { this.x += this.vx * dt; this.y += this.vy * dt; this.life -= dt; }
             draw(ctx) {
                 ctx.globalAlpha = Math.max(0, this.life / this.maxLife);
                 ctx.fillStyle = this.color;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fill();
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
                 ctx.globalAlpha = 1;
             }
         }
 
         class FloatingText {
             constructor(x, y, text, color, isCrit = false) {
-                this.x = x;
-                this.y = y;
-                this.text = text;
-                this.color = color;
-                this.life = 1.0;
-                this.vy = -30;
-                this.isCrit = isCrit;
+                this.x = x; this.y = y; this.text = text; this.color = color;
+                this.life = 0.8; this.vy = -40; this.isCrit = isCrit;
             }
-            update(dt) {
-                this.y += this.vy * dt;
-                this.life -= dt;
-            }
+            update(dt) { this.y += this.vy * dt; this.life -= dt; }
             draw(ctx) {
                 ctx.globalAlpha = Math.max(0, this.life);
                 ctx.fillStyle = this.color;
-                ctx.font = this.isCrit ? "bold 24px Arial" : "bold 16px Arial";
+                ctx.font = this.isCrit ? "bold 26px Arial" : "bold 18px Arial";
                 ctx.textAlign = "center";
-                // Outline
-                ctx.strokeStyle = "black";
-                ctx.lineWidth = 3;
+                ctx.strokeStyle = "black"; ctx.lineWidth = 3;
                 ctx.strokeText(this.text, this.x, this.y);
                 ctx.fillText(this.text, this.x, this.y);
                 ctx.globalAlpha = 1;
             }
         }
 
+        /**
+         * ==========================================
+         * ENTITIES
+         * ==========================================
+         */
         class Entity {
             constructor(x, y, w, h, hp) {
-                this.x = x;
-                this.y = y;
-                this.w = w;
-                this.h = h;
-                this.hp = hp;
-                this.maxHp = hp;
-                this.vx = 0;
-                this.vy = 0;
-                this.speed = 200;
-                this.dirX = 1; // 1 right, -1 left
-                this.dirY = 0;
-                
-                // States
-                this.state = 'IDLE'; // IDLE, RUN, ATTACK, DEFEND, HURT, DEAD
+                this.x = x; this.y = y; this.w = w; this.h = h;
+                this.hp = hp; this.maxHp = hp;
+                this.vx = 0; this.vy = 0;
+                this.dirX = 1; this.dirY = 0;
+                this.state = 'IDLE'; 
                 this.stateTimer = 0;
-                
-                this.color = '#fff';
             }
-
-            takeDamage(amount, sourceX, sourceY, isCrit = false) {
-                if (this.state === 'DEAD') return false;
-
-                let finalDamage = amount;
-                let isParried = false;
-
-                // Defense Logic (Player only initially, but scalable)
-                if (this.isPlayer && this.state === 'DEFEND') {
-                    // Check Parry window (first 0.15s of defense)
-                    if (this.stateTimer < 0.15) {
-                        isParried = true;
-                        game.stats.parries++;
-                        game.spawnFloatingText(this.x + this.w/2, this.y, "PARRY!", "#00ffff", true);
-                        // Heal a bit or regain stamina? Let's just block all damage
-                        finalDamage = 0;
-                        game.screenShake(10);
-                        
-                        // Reflect damage if enemy
-                        game.enemies.forEach(e => {
-                            if (Utils.dist(this.x, this.y, e.x, e.y) < 150) {
-                                e.takeDamage(amount * 2, this.x, this.y, true);
-                            }
-                        });
-                        
-                        // Spawn parry particles
-                        for(let i=0; i<15; i++) game.particles.push(new Particle(this.x+this.w/2, this.y+this.h/2, '#00ffff', 300, 3, 0.4));
-                    } else {
-                        // Normal Block (50% reduction)
-                        finalDamage = Math.floor(amount * 0.5);
-                        game.spawnFloatingText(this.x + this.w/2, this.y, "Bloqueio", "#aaaaaa");
-                    }
-                }
-
-                if (!isParried && finalDamage > 0) {
-                    this.hp -= finalDamage;
-                    this.state = 'HURT';
-                    this.stateTimer = 0;
-                    
-                    // Knockback
-                    const angle = Math.atan2(this.y - sourceY, this.x - sourceX);
-                    const knockbackForce = this.type === 'boss' ? 50 : 200;
-                    this.vx = Math.cos(angle) * knockbackForce;
-                    this.vy = Math.sin(angle) * knockbackForce;
-
-                    game.spawnFloatingText(this.x + this.w/2, this.y, `-${finalDamage}`, isCrit ? '#ff00ff' : '#ff3333', isCrit);
-                    
-                    // Blood particles
-                    const pColor = this.isPlayer ? '#ff3333' : (this.type === 'ninja' ? '#9900ff' : '#ff9900');
-                    for(let i=0; i<10; i++) game.particles.push(new Particle(this.x+this.w/2, this.y+this.h/2, pColor, 200, 4, 0.3));
-
-                    if (this.hp <= 0) {
-                        this.hp = 0;
-                        this.die();
-                    } else if (this.isPlayer) {
-                        game.screenShake(5);
-                        document.body.classList.add('shake');
-                        setTimeout(() => document.body.classList.remove('shake'), 200);
-                    }
-                }
-
-                return !isParried;
-            }
-
-            die() {
-                this.state = 'DEAD';
-                if (!this.isPlayer) {
-                    game.stats.kills++;
-                }
-            }
-
+            isDead() { return this.state === 'DEAD'; }
             applyPhysics(dt) {
-                // Friction
-                this.vx *= 0.85;
-                this.vy *= 0.85;
-
-                this.x += this.vx * dt;
-                this.y += this.vy * dt;
-
-                // Bounds
-                this.x = Utils.clamp(this.x, 0, GAME_WIDTH - this.w);
-                this.y = Utils.clamp(this.y, 0, GAME_HEIGHT - this.h);
+                this.vx *= 0.85; this.vy *= 0.85; // friction
+                this.x = Utils.clamp(this.x + this.vx * dt, 0, GAME_WIDTH - this.w);
+                this.y = Utils.clamp(this.y + this.vy * dt, 0, GAME_HEIGHT - this.h);
             }
         }
 
         class Player extends Entity {
             constructor() {
-                super(GAME_WIDTH / 2 - 20, GAME_HEIGHT / 2 - 20, 40, 40, 100);
-                this.isPlayer = true;
-                this.speed = 350;
+                super(GAME_WIDTH / 2, GAME_HEIGHT / 2, 40, 40, 100);
+                this.speed = 300; // pixels por segundo (aprox 5.0 px/frame)
                 this.color = 'var(--primary)';
-                
                 this.attackCooldown = 0;
                 this.defendCooldown = 0;
-                this.comboCount = 0;
-                this.comboResetTimer = 0;
+                this.combo = 0;
+                this.comboTimer = 0;
             }
 
             update(dt) {
-                if (this.state === 'DEAD') return;
-
+                if (this.isDead()) return;
                 this.stateTimer += dt;
                 if (this.attackCooldown > 0) this.attackCooldown -= dt;
                 if (this.defendCooldown > 0) this.defendCooldown -= dt;
-                if (this.comboResetTimer > 0) {
-                    this.comboResetTimer -= dt;
-                    if (this.comboResetTimer <= 0) this.comboCount = 0;
+                if (this.comboTimer > 0) {
+                    this.comboTimer -= dt;
+                    if (this.comboTimer <= 0) this.combo = 0;
                 }
 
-                // State Machine
+                // Handle States
                 if (this.state === 'HURT') {
                     if (this.stateTimer > 0.2) this.state = 'IDLE';
-                } 
-                else if (this.state === 'ATTACK') {
+                } else if (this.state === 'ATTACK') {
                     if (this.stateTimer > 0.25) this.state = 'IDLE';
-                }
-                else if (this.state === 'DEFEND') {
+                } else if (this.state === 'DEFEND') {
                     if (this.stateTimer > 0.3) {
                         this.state = 'IDLE';
-                        this.defendCooldown = 0.3; // CD after shield drops
+                        this.defendCooldown = 0.3; // E MUST cool down
                     }
-                }
-                else {
-                    // Control input
-                    let dx = 0;
-                    let dy = 0;
-                    if (keys.ArrowUp) dy -= 1;
-                    if (keys.ArrowDown) dy += 1;
-                    if (keys.ArrowLeft) dx -= 1;
-                    if (keys.ArrowRight) dx += 1;
+                } else {
+                    // Read movement from Map (WASD and Arrows combined)
+                    let dx = 0, dy = 0;
+                    if (keysPressed["W"] || keysPressed["ARROWUP"]) dy -= 1;
+                    if (keysPressed["S"] || keysPressed["ARROWDOWN"]) dy += 1;
+                    if (keysPressed["A"] || keysPressed["ARROWLEFT"]) dx -= 1;
+                    if (keysPressed["D"] || keysPressed["ARROWRIGHT"]) dx += 1;
 
                     if (dx !== 0 || dy !== 0) {
-                        // Normalize diagonal speed
-                        const len = Math.sqrt(dx*dx + dy*dy);
+                        let len = Math.sqrt(dx*dx + dy*dy);
                         this.x += (dx/len) * this.speed * dt;
                         this.y += (dy/len) * this.speed * dt;
-                        
                         if (dx !== 0) this.dirX = dx > 0 ? 1 : -1;
                         if (dy !== 0) this.dirY = dy > 0 ? 1 : -1;
-                        
                         this.state = 'RUN';
                     } else {
                         this.state = 'IDLE';
-                    }
-
-                    // Actions
-                    if (isJustPressed(' ') && this.attackCooldown <= 0) {
-                        this.attack();
-                    } else if (isJustPressed('e') && this.defendCooldown <= 0) {
-                        this.defend();
                     }
                 }
 
@@ -632,488 +523,614 @@
             }
 
             attack() {
+                if (this.attackCooldown > 0 || this.state === 'DEFEND') return;
                 this.state = 'ATTACK';
                 this.stateTimer = 0;
-                this.attackCooldown = 0.4;
+                this.attackCooldown = 0.5; // Exactly 0.5s requirement
                 
-                this.comboCount++;
-                this.comboResetTimer = 1.0;
-                const isCrit = this.comboCount % 3 === 0;
-                
-                // Small lunge forward
-                this.vx = this.dirX * 200;
-                this.vy = this.dirY * 200;
+                this.combo++;
+                this.comboTimer = 1.0;
+                let isCombo = this.combo % 3 === 0;
 
-                // Hitbox logic
-                const range = 80;
-                const hitWidth = 60;
+                // Lunge
+                this.vx = this.dirX * 250;
                 
-                // Determine attack box based on direction
-                let hx = this.dirX > 0 ? this.x + this.w : this.x - range;
+                // Hitbox calculations
+                let hitWidth = 70, hitRange = 90;
+                let hx = this.dirX > 0 ? this.x + this.w : this.x - hitRange;
                 let hy = this.y - (hitWidth - this.h)/2;
-                
-                const hitbox = { x: hx, y: hy, w: range, h: hitWidth };
+                let hitbox = { x: hx, y: hy, w: hitRange, h: hitWidth };
 
-                // Draw swoosh particles
-                for(let i=0; i<5; i++) {
-                    game.particles.push(new Particle(
-                        hx + Math.random()*range, 
-                        hy + Math.random()*hitWidth, 
-                        isCrit ? '#ffffff' : this.color, 50, 2, 0.2
-                    ));
+                // Visual FX
+                for(let i=0; i<6; i++) {
+                    game.particles.push(new Particle(hx + Math.random()*hitRange, hy + Math.random()*hitWidth, isCombo ? '#fff' : this.color, 100, 2, 0.2));
                 }
 
-                // Check collision with enemies
-                let dmgMultiplier = 1 + (game.currentPhase * 0.1);
-                let baseDmg = isCrit ? Math.floor(20 * dmgMultiplier) : Math.floor(Math.random() * 6 + 10 * dmgMultiplier);
+                // Apply damage
+                let baseDmg = Math.floor(Utils.random(10, 15));
+                if (isCombo) baseDmg = Math.floor(baseDmg * 1.5); // Combo bônus opcional
 
                 game.enemies.forEach(e => {
-                    if (e.state !== 'DEAD' && Utils.rectIntersect(hitbox, e)) {
-                        e.takeDamage(baseDmg, this.x, this.y, isCrit);
-                        game.stats.damageDealt += baseDmg;
+                    if (!e.isDead() && Utils.rectIntersect(hitbox, e)) {
+                        e.takeDamage(baseDmg, this.x, this.y, isCombo);
+                        game.stats.dmg += baseDmg;
                     }
                 });
             }
 
             defend() {
+                if (this.defendCooldown > 0 || this.state === 'ATTACK' || this.state === 'DEFEND') return;
                 this.state = 'DEFEND';
                 this.stateTimer = 0;
-                this.vx = 0;
-                this.vy = 0;
+                this.vx = 0; this.vy = 0;
+            }
+
+            takeDamage(amount, sourceX, sourceY, canBeParried = true) {
+                if (this.isDead()) return;
+
+                let dmg = amount;
+                let parried = false;
+
+                if (this.state === 'DEFEND') {
+                    // Timing perfeito (< 0.15s) = Parry
+                    if (this.stateTimer <= 0.15 && canBeParried) {
+                        parried = true;
+                        dmg = 0;
+                        game.stats.parries++;
+                        game.spawnFloatingText(this.x+20, this.y, "PARRY!", "#0ff", true);
+                        game.screenShake(10);
+                        
+                        // Reflete duplo
+                        game.enemies.forEach(e => {
+                            if (Utils.dist(this.x, this.y, e.x, e.y) < 150) e.takeDamage(amount * 2, this.x, this.y, true);
+                        });
+                        for(let i=0; i<15; i++) game.particles.push(new Particle(this.x+20, this.y+20, '#0ff', 300, 3, 0.4));
+                    } else {
+                        // Defesa normal (50%)
+                        dmg = Math.floor(amount * 0.5);
+                        game.spawnFloatingText(this.x+20, this.y, "Defesa", "#ccc");
+                    }
+                }
+
+                if (!parried && dmg > 0) {
+                    this.hp -= dmg;
+                    this.state = 'HURT';
+                    this.stateTimer = 0;
+                    
+                    let angle = Math.atan2(this.y - sourceY, this.x - sourceX);
+                    this.vx = Math.cos(angle) * 300;
+                    this.vy = Math.sin(angle) * 300;
+
+                    game.spawnFloatingText(this.x+20, this.y, `-${dmg}`, "#f33", true);
+                    game.screenShake(5);
+                    document.body.classList.add('shake');
+                    setTimeout(() => document.body.classList.remove('shake'), 200);
+
+                    if (this.hp <= 0) {
+                        this.hp = 0;
+                        this.state = 'DEAD';
+                        game.triggerGameOver();
+                    }
+                }
             }
 
             updateUI() {
-                document.getElementById('hp-fill').style.width = `${Math.max(0, (this.hp / this.maxHp) * 100)}%`;
+                let pct = Math.max(0, this.hp / this.maxHp);
+                let fill = document.getElementById('hp-fill');
+                fill.style.width = `${pct * 100}%`;
                 
-                // Color changing based on HP
-                let hpColor = '#00ffcc';
-                if (this.hp < this.maxHp * 0.3) hpColor = '#ff3333';
-                else if (this.hp < this.maxHp * 0.6) hpColor = '#ffcc00';
+                // RGB progressivo
+                if (pct > 0.6) fill.style.background = 'linear-gradient(90deg, #00cc00, #00ffcc)';
+                else if (pct > 0.3) fill.style.background = 'linear-gradient(90deg, #ccaa00, #ffff00)';
+                else fill.style.background = 'linear-gradient(90deg, #cc0000, #ff3333)';
                 
-                document.getElementById('hp-fill').style.background = hpColor;
                 document.getElementById('hp-text').innerText = `${Math.floor(this.hp)} / ${this.maxHp}`;
             }
 
             draw(ctx) {
                 // Shadow
                 ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                ctx.beginPath();
-                ctx.ellipse(this.x + this.w/2, this.y + this.h, this.w/2, 10, 0, 0, Math.PI*2);
-                ctx.fill();
+                ctx.beginPath(); ctx.ellipse(this.x + 20, this.y + 40, 20, 10, 0, 0, Math.PI*2); ctx.fill();
 
                 // Body
                 ctx.fillStyle = this.state === 'HURT' ? '#ffaaaa' : this.color;
                 ctx.fillRect(this.x, this.y, this.w, this.h);
 
-                // Eyes (Direction)
+                // Eyes
                 ctx.fillStyle = '#000';
-                let eyeOffsetX = this.dirX > 0 ? 25 : 5;
-                ctx.fillRect(this.x + eyeOffsetX, this.y + 10, 5, 5);
-                ctx.fillRect(this.x + eyeOffsetX, this.y + 20, 5, 5);
+                let ex = this.dirX > 0 ? 25 : 5;
+                ctx.fillRect(this.x + ex, this.y + 10, 5, 5);
+                ctx.fillRect(this.x + ex, this.y + 20, 5, 5);
 
                 // Shield
                 if (this.state === 'DEFEND') {
-                    ctx.strokeStyle = this.stateTimer < 0.15 ? '#ffffff' : '#00aaff';
+                    ctx.strokeStyle = this.stateTimer < 0.15 ? '#fff' : '#0af';
                     ctx.lineWidth = 4;
-                    ctx.beginPath();
-                    ctx.arc(this.x + this.w/2, this.y + this.h/2, this.w, 0, Math.PI * 2);
-                    ctx.stroke();
-                    
-                    ctx.fillStyle = 'rgba(0, 170, 255, 0.2)';
-                    ctx.fill();
+                    ctx.beginPath(); ctx.arc(this.x+20, this.y+20, 30, 0, Math.PI*2); ctx.stroke();
+                    ctx.fillStyle = 'rgba(0, 170, 255, 0.2)'; ctx.fill();
                 }
 
-                // Sword / Attack Animation
+                // Attack Anim
                 if (this.state === 'ATTACK') {
                     ctx.save();
-                    ctx.translate(this.x + this.w/2, this.y + this.h/2);
-                    
-                    // Slash arc
-                    ctx.strokeStyle = this.comboCount % 3 === 0 ? '#ffffff' : this.color;
-                    ctx.lineWidth = 6;
+                    ctx.translate(this.x+20, this.y+20);
+                    ctx.strokeStyle = this.combo%3===0 ? '#fff' : this.color;
+                    ctx.lineWidth = 8;
                     ctx.beginPath();
-                    
-                    let startAngle, endAngle;
-                    if (this.dirX > 0) {
-                        startAngle = -Math.PI/2;
-                        endAngle = Math.PI/2;
-                    } else {
-                        startAngle = Math.PI/2;
-                        endAngle = 3*Math.PI/2;
-                    }
-
-                    // Animate arc based on timer
-                    let progress = this.stateTimer / 0.25;
-                    let currentEnd = startAngle + (endAngle - startAngle) * progress;
-                    
-                    ctx.arc(0, 0, 45, startAngle, currentEnd, this.dirX < 0);
+                    let sA = this.dirX>0 ? -Math.PI/2 : Math.PI/2;
+                    let eA = this.dirX>0 ? Math.PI/2 : 3*Math.PI/2;
+                    let curr = sA + (eA - sA) * (this.stateTimer/0.25);
+                    ctx.arc(0, 0, 45, sA, curr, this.dirX < 0);
                     ctx.stroke();
-                    
                     ctx.restore();
                 }
             }
         }
 
         class Enemy extends Entity {
-            constructor(type, x, y) {
-                let w=40, h=40, hp=30, color='#ff3366', speed=100;
-                
-                if (type === 'fast') { hp=25; speed=220; color='#ff00aa'; w=30; h=30; }
-                if (type === 'boss') { hp=80; speed=80; color='#ff9900'; w=80; h=80; }
-                if (type === 'ninja') { hp=35; speed=280; color='#9900ff'; w=35; h=35; }
-
-                // Escalar HP conforme fase
-                hp = Math.floor(hp * (1 + (game.currentPhase * 0.15)));
-
-                super(x, y, w, h, hp);
+            constructor(type, x, y, hpBase) {
+                super(x, y, 40, 40, hpBase);
                 this.type = type;
-                this.color = color;
-                this.speed = speed;
-                this.baseSpeed = speed;
-
-                this.attackCooldown = 0;
-                this.specialCooldown = type === 'boss' ? 10 : 0;
-                
-                // AI Vars
-                this.targetX = x;
-                this.targetY = y;
                 this.aiTimer = 0;
+                this.attackCooldown = 0;
+                this.regenTimer = 0;
+                
+                // Configurar Perfis Hardcore
+                if(type === 'basic') { this.color='var(--basic)'; this.speed=150; this.maxAttackCD=2.2; this.w=40; this.h=40; }
+                if(type === 'fast')  { this.color='var(--fast)'; this.speed=270; this.maxAttackCD=0.6; this.w=35; this.h=35; }
+                if(type === 'tank')  { this.color='var(--tank)'; this.speed=132; this.maxAttackCD=2.8; this.w=50; this.h=50; }
+                if(type === 'ninja') { this.color='var(--ninja)'; this.speed=210; this.maxAttackCD=0.5; this.w=35; this.h=35; }
+                if(type === 'boss')  { this.color='var(--boss)'; this.speed=120; this.maxAttackCD=2.2; this.w=60; this.h=60; }
+
+                if (game.currentPhase === 5 && type === 'tank') this.speed = 100; // Ajuste fino Fase 6
+
+                this.bossPhase = 1;
+                this.multiHitCount = 0;
+                this.isBlocking = false;
             }
 
             update(dt) {
-                if (this.state === 'DEAD') return;
+                if (this.isDead() || game.player.isDead()) return;
 
                 this.stateTimer += dt;
                 this.aiTimer += dt;
                 if (this.attackCooldown > 0) this.attackCooldown -= dt;
-                if (this.specialCooldown > 0) this.specialCooldown -= dt;
 
-                const distToPlayer = Utils.dist(this.x, this.y, game.player.x, game.player.y);
-                const isPlayerDead = game.player.state === 'DEAD';
+                // Regeneração (Tanque e Boss)
+                if (this.type === 'tank' || this.type === 'boss') {
+                    this.regenTimer += dt;
+                    if (this.regenTimer >= 30) {
+                        this.regenTimer = 0;
+                        let amount = 15;
+                        this.hp = Math.min(this.maxHp, this.hp + amount);
+                        game.spawnFloatingText(this.x+this.w/2, this.y, `+${amount} HP`, "#0f0");
+                    }
+                    if (this.type === 'tank') {
+                        this.isBlocking = this.hp < this.maxHp * 0.5;
+                    }
+                }
 
                 if (this.state === 'HURT') {
                     if (this.stateTimer > 0.2) this.state = 'IDLE';
                 } 
                 else if (this.state === 'ATTACK_WINDUP') {
-                    // Flash before attack
-                    if (this.stateTimer > (this.type === 'boss' ? 0.6 : 0.3)) {
-                        this.executeAttack();
-                    }
-                }
+                    if (this.stateTimer > 0.4) this.executeAttack();
+                } 
                 else if (this.state === 'ATTACK_REC') {
-                    if (this.stateTimer > 0.4) this.state = 'IDLE';
-                }
-                else if (this.state === 'SPECIAL_WINDUP') {
-                    if (this.stateTimer > 1.5) this.executeSpecial();
-                }
-                else if (!isPlayerDead) {
-                    // AI Logic
-                    this.state = 'RUN';
-                    let desiredDist = this.type === 'fast' ? 40 : (this.type === 'boss' ? 70 : 50);
-
-                    // Boss special check
-                    if (this.type === 'boss' && this.specialCooldown <= 0) {
-                        this.state = 'SPECIAL_WINDUP';
-                        this.stateTimer = 0;
-                        this.vx = 0; this.vy = 0;
-                        game.spawnFloatingText(this.x+this.w/2, this.y-20, "!!!", "#ff0000");
-                        return;
-                    }
-
-                    // Ninja teleport check
-                    if (this.type === 'ninja' && this.aiTimer > 2.5 && distToPlayer > 150) {
-                        this.aiTimer = 0;
-                        // Teleport behind player
-                        for(let i=0; i<15; i++) game.particles.push(new Particle(this.x+this.w/2, this.y+this.h/2, this.color, 100, 3, 0.3));
-                        this.x = game.player.x - (game.player.dirX * 60);
-                        this.y = game.player.y;
-                        this.x = Utils.clamp(this.x, 0, GAME_WIDTH-this.w);
-                        for(let i=0; i<15; i++) game.particles.push(new Particle(this.x+this.w/2, this.y+this.h/2, this.color, 100, 3, 0.3));
-                    }
-
-                    if (distToPlayer <= desiredDist && this.attackCooldown <= 0) {
-                        this.state = 'ATTACK_WINDUP';
-                        this.stateTimer = 0;
-                        this.vx = 0; this.vy = 0;
-                        // Face player
-                        this.dirX = (game.player.x - this.x) > 0 ? 1 : -1;
-                    } else if (distToPlayer > desiredDist - 10) {
-                        // Move towards player
-                        let angle = Math.atan2(game.player.y - this.y, game.player.x - this.x);
-                        
-                        if (this.type === 'fast') {
-                            // Erratic movement (sine wave approach)
-                            angle += Math.sin(this.aiTimer * 5) * 0.5;
+                    if (this.stateTimer > 0.5) {
+                        this.state = 'IDLE';
+                        // Boss / Tank multi-hit continuation
+                        if (this.multiHitCount > 0) {
+                            this.state = 'ATTACK_WINDUP';
+                            this.stateTimer = 0.2; // faster windup for combo
                         }
-
-                        this.x += Math.cos(angle) * this.speed * dt;
-                        this.y += Math.sin(angle) * this.speed * dt;
-                        this.dirX = Math.cos(angle) > 0 ? 1 : -1;
                     }
+                } 
+                else {
+                    this.processAILogic(dt);
                 }
 
                 this.applyPhysics(dt);
+            }
+
+            processAILogic(dt) {
+                let p = game.player;
+                let dist = Utils.dist(this.x, this.y, p.x, p.y);
+                
+                // Avoid grouping (repel from other enemies)
+                game.enemies.forEach(other => {
+                    if (other !== this && !other.isDead()) {
+                        let d = Utils.dist(this.x, this.y, other.x, other.y);
+                        if (d < 50 && d > 0) {
+                            this.x += (this.x - other.x) / d * 2;
+                            this.y += (this.y - other.y) / d * 2;
+                        }
+                    }
+                });
+
+                // Range Check (Minimum 400px detection for hardcore requirement)
+                if (dist > 800) { this.state = 'IDLE'; return; }
+
+                this.state = 'RUN';
+                this.dirX = (p.x - this.x) > 0 ? 1 : -1;
+
+                // ==========================================
+                // IA PROFILE 1: BÁSICO (Movimento Retilíneo)
+                // ==========================================
+                if (this.type === 'basic') {
+                    if (dist < 80 && this.attackCooldown <= 0) {
+                        this.startAttack(1);
+                    } else if (dist > 70) {
+                        // Linha reta, foca no eixo mais distante
+                        if (Math.abs(p.x - this.x) > Math.abs(p.y - this.y)) {
+                            this.x += this.dirX * this.speed * dt;
+                        } else {
+                            this.y += (p.y > this.y ? 1 : -1) * this.speed * dt;
+                        }
+                    }
+                }
+                
+                // ==========================================
+                // IA PROFILE 2: RÁPIDO/PREDADOR (Antecipação)
+                // ==========================================
+                else if (this.type === 'fast') {
+                    let activeSpeed = this.hp < this.maxHp*0.4 ? this.speed * 1.2 : this.speed;
+                    
+                    if (dist < 60 && this.attackCooldown <= 0) {
+                        this.startAttack(p.state === 'IDLE' ? 3 : 1); // 3 hits se jogador parado
+                    } else if (dist > 50) {
+                        // Predict position
+                        let targetX = p.x + (p.state==='RUN' ? p.dirX * 60 : 0);
+                        let targetY = p.y + (p.state==='RUN' ? p.dirY * 60 : 0);
+                        
+                        let angle = Math.atan2(targetY - this.y, targetX - this.x);
+                        // Erratic jump
+                        if (this.aiTimer > 5) {
+                            this.aiTimer = 0;
+                            this.vx = Math.cos(angle) * 800;
+                            this.vy = Math.sin(angle) * 800;
+                        } else {
+                            this.x += Math.cos(angle) * activeSpeed * dt;
+                            this.y += Math.sin(angle) * activeSpeed * dt;
+                        }
+                    }
+                    if (p.state === 'DEFEND') this.aiTimer -= dt * 2; // confuso
+                }
+                
+                // ==========================================
+                // IA PROFILE 3: TANK (Lento, Multi-hit)
+                // ==========================================
+                else if (this.type === 'tank') {
+                    if (dist < 90 && this.attackCooldown <= 0) {
+                        this.startAttack(this.aiTimer > 12 ? 3 : 1);
+                        if (this.aiTimer > 12) this.aiTimer = 0; // reseta especial
+                    } else if (dist > 80) {
+                        let angle = Math.atan2(p.y - this.y, p.x - this.x);
+                        this.x += Math.cos(angle) * this.speed * dt;
+                        this.y += Math.sin(angle) * this.speed * dt;
+                    }
+                }
+                
+                // ==========================================
+                // IA PROFILE 4: NINJA (Teletransporte)
+                // ==========================================
+                else if (this.type === 'ninja') {
+                    if (this.aiTimer > 1.5) {
+                        this.aiTimer = 0;
+                        // FX before
+                        for(let i=0; i<15; i++) game.particles.push(new Particle(this.x+20, this.y+20, this.color, 200, 3, 0.4));
+                        
+                        // TP Logic: behind if attacking/idle, opposite if defending
+                        let offset = p.state === 'DEFEND' ? 60 : -60;
+                        this.x = p.x + (p.dirX * offset);
+                        this.y = p.y;
+                        this.x = Utils.clamp(this.x, 0, GAME_WIDTH - this.w);
+                        
+                        // FX after
+                        for(let i=0; i<15; i++) game.particles.push(new Particle(this.x+20, this.y+20, this.color, 200, 3, 0.4));
+                        this.startAttack(1); // ataca imediato
+                    } else {
+                        // Spiral hover
+                        if (dist > 70) {
+                            let angle = Math.atan2(p.y - this.y, p.x - this.x) + 0.5; // offset angle
+                            this.x += Math.cos(angle) * this.speed * dt;
+                            this.y += Math.sin(angle) * this.speed * dt;
+                        }
+                    }
+                }
+                
+                // ==========================================
+                // IA PROFILE 5: BOSS SUPREMO
+                // ==========================================
+                else if (this.type === 'boss') {
+                    // Update Phase logic
+                    if (this.hp < 40) this.bossPhase = 3;
+                    else if (this.hp < 80) this.bossPhase = 2;
+
+                    let activeSpeed = this.bossPhase === 1 ? 120 : (this.bossPhase === 2 ? 210 : 270);
+                    this.isBlocking = this.bossPhase === 3;
+
+                    if (this.bossPhase === 3 && this.aiTimer > 8) {
+                        this.aiTimer = 0;
+                        this.startAttack(5); // Berserk special
+                    } 
+                    else if (dist < 100 && this.attackCooldown <= 0) {
+                        this.startAttack(1);
+                    } 
+                    else if (dist > 90) {
+                        let targetX = p.x, targetY = p.y;
+                        if (this.bossPhase >= 2) { // Anticipate
+                            targetX += p.dirX * 50; targetY += p.dirY * 50;
+                        }
+                        let angle = Math.atan2(targetY - this.y, targetX - this.x);
+                        this.x += Math.cos(angle) * activeSpeed * dt;
+                        this.y += Math.sin(angle) * activeSpeed * dt;
+                    }
+                }
+            }
+
+            startAttack(hits) {
+                this.state = 'ATTACK_WINDUP';
+                this.stateTimer = 0;
+                this.vx = 0; this.vy = 0;
+                this.multiHitCount = hits - 1; // 1 current + remaining
+                this.attackCooldown = this.maxAttackCD;
             }
 
             executeAttack() {
                 this.state = 'ATTACK_REC';
                 this.stateTimer = 0;
                 
-                // Lunge
-                this.vx = this.dirX * (this.type==='fast'? 300 : 150);
+                this.vx = this.dirX * 200; // lunge
 
-                let attackRange = this.type === 'boss' ? 100 : 60;
-                let dmg = this.type === 'boss' ? Utils.random(14, 18) : 
-                          (this.type === 'fast' ? Utils.random(6, 10) : 
-                          (this.type === 'ninja' ? Utils.random(15, 20) : Utils.random(8, 12)));
-                
-                dmg = Math.floor(dmg * (1 + (game.currentPhase * 0.1)));
+                // Determine Damage based on type & multiplier
+                let baseDmg = 0;
+                let isNinjaTriple = false;
 
-                // Simple distance + facing check for attack hitting player
+                if (this.type === 'basic') baseDmg = Utils.random(10, 12);
+                else if (this.type === 'fast') baseDmg = Utils.random(10, 14); // Atualizado para fase 4+
+                else if (this.type === 'tank') baseDmg = this.multiHitCount === 0 && this.maxAttackCD === 2.8 ? 18 : Utils.random(16, 20); // Last hit of special is stronger
+                else if (this.type === 'ninja') { baseDmg = Utils.random(13, 17); isNinjaTriple = true; }
+                else if (this.type === 'boss') baseDmg = Utils.random(15, 18);
+
+                let phaseMult = 1 + (game.currentPhase * 0.1);
+                baseDmg = Math.floor(baseDmg * phaseMult);
+
+                let attackRange = this.w + 30;
                 let dist = Utils.dist(this.x, this.y, game.player.x, game.player.y);
                 
-                // If close enough and player is in front
-                let playerInFront = (this.dirX > 0 && game.player.x > this.x - 20) || 
-                                    (this.dirX < 0 && game.player.x < this.x + this.w + 20);
+                // Frontal check (Ninja attacks 3 directions, so skip frontal check)
+                let playerInFront = isNinjaTriple || ((this.dirX > 0 && game.player.x > this.x - 20) || (this.dirX < 0 && game.player.x < this.x + this.w + 20));
 
                 if (dist < attackRange && playerInFront) {
-                    game.player.takeDamage(dmg, this.x, this.y);
+                    game.player.takeDamage(baseDmg, this.x, this.y);
                 }
 
-                this.attackCooldown = this.type === 'fast' ? 1.0 : (this.type === 'ninja' ? 0.8 : 2.0);
+                if (this.multiHitCount > 0) this.multiHitCount--;
             }
 
-            executeSpecial() {
-                this.state = 'ATTACK_REC';
-                this.stateTimer = 0;
-                this.specialCooldown = 12;
+            takeDamage(amount, sourceX, sourceY, isCrit = false) {
+                if (this.isDead()) return;
 
-                // AOE explosion
-                let radius = 200;
-                for(let i=0; i<30; i++) {
-                    game.particles.push(new Particle(this.x+this.w/2, this.y+this.h/2, '#ff5500', 400, 5, 0.5));
+                let dmg = amount;
+                if (this.isBlocking) {
+                    dmg = Math.floor(amount * 0.6); // 40% reduction
+                    game.spawnFloatingText(this.x+this.w/2, this.y, "Bloqueado", "#888");
                 }
-                game.screenShake(15);
+                if (this.type === 'ninja' && isCrit) {
+                    dmg *= 2; // Fraqueza: Parry reflete 2x
+                }
 
-                let dist = Utils.dist(this.x+this.w/2, this.y+this.h/2, game.player.x+game.player.w/2, game.player.y+game.player.h/2);
-                if (dist < radius) {
-                    game.player.takeDamage(Math.floor(25 * (1 + (game.currentPhase * 0.1))), this.x, this.y, true);
+                this.hp -= dmg;
+                this.state = 'HURT';
+                this.stateTimer = 0;
+                
+                let angle = Math.atan2(this.y - sourceY, this.x - sourceX);
+                this.vx = Math.cos(angle) * (this.type === 'boss' || this.type === 'tank' ? 50 : 150);
+                this.vy = Math.sin(angle) * (this.type === 'boss' || this.type === 'tank' ? 50 : 150);
+
+                game.spawnFloatingText(this.x+this.w/2, this.y, `-${dmg}`, isCrit ? '#ff00ff' : '#fff', isCrit);
+                
+                for(let i=0; i<8; i++) game.particles.push(new Particle(this.x+this.w/2, this.y+this.h/2, this.color, 150, 4, 0.3));
+
+                if (this.hp <= 0) {
+                    this.hp = 0;
+                    this.state = 'DEAD';
+                    game.stats.kills++;
                 }
             }
 
             draw(ctx) {
-                if (this.state === 'DEAD') return;
+                if (this.isDead()) return;
 
                 // Shadow
                 ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                ctx.beginPath();
-                ctx.ellipse(this.x + this.w/2, this.y + this.h, this.w/2, 10, 0, 0, Math.PI*2);
-                ctx.fill();
+                ctx.beginPath(); ctx.ellipse(this.x + this.w/2, this.y + this.h, this.w/2, 10, 0, 0, Math.PI*2); ctx.fill();
 
-                // Body color (flash white if windup)
+                // Flash Logic
                 ctx.fillStyle = this.color;
-                if (this.state === 'HURT') ctx.fillStyle = '#ffffff';
-                if (this.state === 'ATTACK_WINDUP' && this.stateTimer % 0.1 < 0.05) ctx.fillStyle = '#ffffff';
-                if (this.state === 'SPECIAL_WINDUP') {
-                    ctx.fillStyle = this.stateTimer % 0.2 < 0.1 ? '#ffffff' : '#ff0000';
-                }
+                if (this.state === 'HURT') ctx.fillStyle = '#fff';
+                if (this.state === 'ATTACK_WINDUP' && this.stateTimer % 0.1 < 0.05) ctx.fillStyle = '#fff';
 
                 ctx.fillRect(this.x, this.y, this.w, this.h);
 
+                // Boss Phases Aura
+                if (this.type === 'boss') {
+                    ctx.strokeStyle = this.bossPhase === 3 ? '#f00' : (this.bossPhase === 2 ? '#f0f' : 'transparent');
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(this.x-2, this.y-2, this.w+4, this.h+4);
+                }
+
                 // Eyes
-                ctx.fillStyle = '#fff';
-                let eyeOffsetX = this.dirX > 0 ? this.w*0.6 : this.w*0.1;
-                ctx.fillRect(this.x + eyeOffsetX, this.y + this.h*0.2, this.w*0.15, this.w*0.15);
-                ctx.fillRect(this.x + eyeOffsetX, this.y + this.h*0.5, this.w*0.15, this.w*0.15);
+                ctx.fillStyle = '#000';
+                let ex = this.dirX > 0 ? this.w*0.6 : this.w*0.1;
+                ctx.fillRect(this.x + ex, this.y + this.h*0.2, this.w*0.15, this.w*0.15);
+                ctx.fillRect(this.x + ex, this.y + this.h*0.5, this.w*0.15, this.w*0.15);
+
+                // Tank Block Shield
+                if (this.isBlocking) {
+                    ctx.strokeStyle = 'rgba(136, 136, 170, 0.5)';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(this.x-5, this.y-5, this.w+10, this.h+10);
+                }
 
                 // HP Bar
                 if (this.hp < this.maxHp) {
-                    ctx.fillStyle = '#333';
-                    ctx.fillRect(this.x, this.y - 10, this.w, 5);
-                    ctx.fillStyle = '#ff0000';
-                    ctx.fillRect(this.x, this.y - 10, this.w * (this.hp / this.maxHp), 5);
+                    ctx.fillStyle = '#222'; ctx.fillRect(this.x, this.y - 10, this.w, 5);
+                    ctx.fillStyle = '#f00'; ctx.fillRect(this.x, this.y - 10, this.w * (this.hp / this.maxHp), 5);
                 }
 
-                // Special Attack indicator
-                if (this.state === 'SPECIAL_WINDUP') {
-                    ctx.strokeStyle = 'rgba(255, 50, 0, 0.5)';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    let radius = 200 * (this.stateTimer / 1.5);
-                    ctx.arc(this.x + this.w/2, this.y + this.h/2, radius, 0, Math.PI*2);
-                    ctx.stroke();
-                }
-
-                // Attack visual
+                // Attack Vis
                 if (this.state === 'ATTACK_REC' && this.stateTimer < 0.15) {
                     ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-                    if (this.dirX > 0) {
-                        ctx.fillRect(this.x + this.w, this.y + 10, 40, 20);
+                    if (this.type === 'ninja') {
+                        // 3 hits visuais
+                        ctx.fillRect(this.x-10, this.y-10, this.w+20, 10);
+                        ctx.fillRect(this.x-10, this.y+this.h, this.w+20, 10);
+                        if (this.dirX > 0) ctx.fillRect(this.x+this.w, this.y, 20, this.h);
+                        else ctx.fillRect(this.x-20, this.y, 20, this.h);
                     } else {
-                        ctx.fillRect(this.x - 40, this.y + 10, 40, 20);
+                        if (this.dirX > 0) ctx.fillRect(this.x + this.w, this.y + 10, 30, 20);
+                        else ctx.fillRect(this.x - 30, this.y + 10, 30, 20);
                     }
                 }
             }
         }
 
         /**
-         * GAME ENGINE & LOGIC
+         * ==========================================
+         * GAME MANAGER
+         * ==========================================
          */
         const game = {
-            state: 'MENU', // MENU, PLAYING, GAMEOVER, VICTORY
-            lastTime: 0,
             player: null,
             enemies: [],
             particles: [],
             floatingTexts: [],
-            currentPhase: 0,
-            phaseTimer: 0,
+            currentPhase: 1,
             shakeTime: 0,
+            lastTime: 0,
             
-            stats: {
-                startTime: 0,
-                kills: 0,
-                parries: 0,
-                damageDealt: 0
-            },
+            stats: { startTime: 0, kills: 0, parries: 0, dmg: 0 },
 
-            phases: [
-                { id: 1, title: "Fase 1: O Início", desc: "Use SETAS para mover, ESPAÇO para atacar", spawn: () => [new Enemy('basic', 900, 300)] },
-                { id: 2, title: "Fase 2: Mais Inimigos", desc: "Pressione E antes de ser atingido para Parry", spawn: () => [new Enemy('basic', 800, 200), new Enemy('basic', 800, 500)] },
-                { id: 3, title: "Fase 3: Agilidade", desc: "Eles estão ficando mais rápidos", spawn: () => [new Enemy('basic', 800, 300), new Enemy('fast', 1000, 400)] },
-                { id: 4, title: "Fase 4: Enxame", desc: "Não fique encurralado", spawn: () => [new Enemy('fast', 800, 200), new Enemy('fast', 1000, 360), new Enemy('fast', 800, 500)] },
-                { id: 5, title: "Fase 5: O Bruto", desc: "Cuidado com o ataque carregado!", spawn: () => [new Enemy('boss', 900, 320)] },
-                { id: 6, title: "Fase 6: Caos", desc: "Priorize seus alvos", spawn: () => [new Enemy('boss', 900, 320), new Enemy('fast', 700, 150), new Enemy('fast', 700, 550)] },
-                { id: 7, title: "Fase 7: As Sombras", desc: "Ele se move nas sombras...", spawn: () => [new Enemy('ninja', 640, 360)] },
-                { id: 8, title: "Fase Final: O Teste", desc: "Tudo o que você aprendeu", spawn: () => [new Enemy('ninja', 900, 200), new Enemy('boss', 900, 500), new Enemy('basic', 1100, 360)] }
+            phasesConfig: [
+                { id: 1, pHP: 120, title: "Fase 1: Tutorial", desc: "Padrão: linha reta. Ataque quando ele parar.", spawn: () => [new Enemy('basic', 1000, 360, 35)] },
+                { id: 2, pHP: 110, title: "Fase 2: Espaço", desc: "Controle a distância. Mantenha eles separados.", spawn: () => [new Enemy('basic', 900, 200, 35), new Enemy('basic', 900, 500, 35)] },
+                { id: 3, pHP: 100, title: "Fase 3: O Predador", desc: "Rosa antecipa seus movimentos. Cuidado!", spawn: () => [new Enemy('basic', 900, 200, 35), new Enemy('fast', 1000, 500, 28)] },
+                { id: 4, pHP: 95, title: "Fase 4: Caos", desc: "Mantenha um sempre entre você e o outro.", spawn: () => [new Enemy('fast', 300, 100, 32), new Enemy('fast', 1000, 600, 32)] },
+                { id: 5, pHP: 100, title: "Fase 5: O Tanque", desc: "Ataques lentos mas regenera vida. Acumule dano.", spawn: () => [new Enemy('tank', 1000, 360, 75)] },
+                { id: 6, pHP: 90, title: "Fase 6: O Inferno", desc: "Isole o Tanque dos Rápidos.", spawn: () => [new Enemy('tank', 900, 360, 75), new Enemy('fast', 400, 100, 34), new Enemy('fast', 400, 600, 34)] },
+                { id: 7, pHP: 100, title: "Fase 7: O Fantasma", desc: "Ele teletransporta para suas costas. Reaja!", spawn: () => [new Enemy('ninja', 1000, 360, 28)] },
+                { id: 8, pHP: 100, title: "Supremacia", desc: "Ele aprende. Mude sua estratégia a cada 40 de HP.", spawn: () => [new Enemy('boss', 1000, 360, 120)] }
             ],
 
             start() {
-                this.stats = { startTime: Date.now(), kills: 0, parries: 0, damageDealt: 0 };
-                this.currentPhase = 0;
+                gameState = "GAMEPLAY";
+                this.stats = { startTime: Date.now(), kills: 0, parries: 0, dmg: 0 };
                 document.getElementById('screen-menu').classList.add('hidden');
                 document.getElementById('hud').classList.remove('hidden');
                 this.player = new Player();
-                this.state = 'PLAYING';
-                this.startPhase(0);
+                this.startPhase(1);
                 
                 if (!this.lastTime) {
                     this.lastTime = performance.now();
-                    requestAnimationFrame(this.loop.bind(this));
+                    requestAnimationFrame((ts) => this.loop(ts));
                 }
             },
 
-            restartPhase() {
-                document.getElementById('screen-gameover').classList.add('hidden');
-                this.player = new Player();
-                this.state = 'PLAYING';
-                this.startPhase(this.currentPhase);
-            },
-
             resetToMenu() {
+                gameState = "MENU";
+                document.getElementById('screen-gameover').classList.add('hidden');
                 document.getElementById('screen-victory').classList.add('hidden');
                 document.getElementById('hud').classList.add('hidden');
                 document.getElementById('screen-menu').classList.remove('hidden');
-                this.state = 'MENU';
             },
 
-            startPhase(index) {
-                this.currentPhase = index;
+            triggerGameOver() {
+                gameState = "GAME_OVER";
+                document.getElementById('gameover-text').innerText = `A arena cobrou seu preço na Fase ${this.currentPhase}.`;
+                setTimeout(() => { document.getElementById('screen-gameover').classList.remove('hidden'); }, 1000);
+            },
+
+            winGame() {
+                gameState = "VICTORY";
+                document.getElementById('screen-victory').classList.remove('hidden');
+                document.getElementById('hud').classList.add('hidden');
+                
+                let time = Math.floor((Date.now() - this.stats.startTime)/1000);
+                document.getElementById('stat-time').innerText = `Tempo Total: ${Math.floor(time/60).toString().padStart(2,'0')}:${(time%60).toString().padStart(2,'0')}`;
+                document.getElementById('stat-kills').innerText = `Abates Totais: ${this.stats.kills}`;
+                document.getElementById('stat-parries').innerText = `Parries Perfeitos: ${this.stats.parries}`;
+                document.getElementById('stat-dmg').innerText = `Dano Causado: ${this.stats.dmg}`;
+            },
+
+            startPhase(pNum) {
+                this.currentPhase = pNum;
+                let pData = this.phasesConfig[pNum - 1];
+                
                 this.enemies = [];
                 this.particles = [];
                 this.floatingTexts = [];
                 
-                // Heal player a bit between phases
-                if (index > 0) this.player.hp = Math.min(this.player.maxHp, this.player.hp + 30);
+                this.player.maxHp = pData.pHP;
+                this.player.hp = pData.pHP;
                 this.player.x = 200;
                 this.player.y = GAME_HEIGHT / 2;
+                this.player.state = 'IDLE';
+                keysPressed = {}; // Clean inputs
                 
-                document.getElementById('phase-display').innerText = `Fase ${index + 1}/8`;
+                document.getElementById('phase-display').innerText = `Fase ${pNum}/8`;
 
-                // Show announcement
-                const p = this.phases[index];
-                document.getElementById('announcement-title').innerText = p.title;
-                document.getElementById('announcement-desc').innerText = p.desc;
-                
+                // Announcement
+                document.getElementById('announcement-title').innerText = pData.title;
+                document.getElementById('announcement-desc').innerText = pData.desc;
                 const ann = document.getElementById('phase-announcement');
                 ann.classList.remove('show-announcement');
-                void ann.offsetWidth; // trigger reflow
+                void ann.offsetWidth; // reflow
                 ann.classList.add('show-announcement');
 
-                // Spawn enemies after short delay
+                // Spawn with delay
                 setTimeout(() => {
-                    if (this.state === 'PLAYING') {
-                        this.enemies = p.spawn();
-                        // Particle burst on spawn
+                    if (gameState === "GAMEPLAY" || gameState === "PAUSED") {
+                        this.enemies = pData.spawn();
                         this.enemies.forEach(e => {
-                            for(let i=0; i<20; i++) this.particles.push(new Particle(e.x+e.w/2, e.y+e.h/2, e.color, 200, 3, 0.5));
+                            for(let i=0; i<30; i++) this.particles.push(new Particle(e.x+20, e.y+20, e.color, 300, 3, 0.6));
                         });
+                        this.updateEnemyCounter();
                     }
                 }, 1500);
             },
 
-            screenShake(durationFrames) {
-                this.shakeTime = durationFrames;
+            updateEnemyCounter() {
+                let count = this.enemies.filter(e => !e.isDead()).length;
+                document.getElementById('enemy-counter').innerText = `Inimigos restantes: ${count}`;
             },
 
-            spawnFloatingText(x, y, text, color, isCrit=false) {
-                this.floatingTexts.push(new FloatingText(x, y, text, color, isCrit));
-            },
-
-            formatTime(ms) {
-                let seconds = Math.floor(ms / 1000);
-                let mins = Math.floor(seconds / 60);
-                seconds = seconds % 60;
-                return `${mins.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            },
-
-            winGame() {
-                this.state = 'VICTORY';
-                document.getElementById('screen-victory').classList.remove('hidden');
-                document.getElementById('hud').classList.add('hidden');
-                
-                let timePlayed = Date.now() - this.stats.startTime;
-                document.getElementById('stat-time').innerText = `Tempo Total: ${this.formatTime(timePlayed)}`;
-                document.getElementById('stat-kills').innerText = `Inimigos Derrotados: ${this.stats.kills}`;
-                document.getElementById('stat-parries').innerText = `Parries Perfeitos: ${this.stats.parries}`;
-                document.getElementById('stat-dmg').innerText = `Dano Causado: ${this.stats.damageDealt}`;
-            },
+            screenShake(frames) { this.shakeTime = frames; },
+            spawnFloatingText(x, y, t, c, crit=false) { this.floatingTexts.push(new FloatingText(x, y, t, c, crit)); },
 
             update(dt) {
-                if (this.state !== 'PLAYING') return;
-
-                // Reset logic
-                if (isJustPressed('r')) {
-                    this.player.die();
-                }
+                if (gameState !== "GAMEPLAY") return;
 
                 this.player.update(dt);
 
-                if (this.player.state === 'DEAD') {
-                    this.state = 'GAMEOVER';
-                    setTimeout(() => {
-                        document.getElementById('screen-gameover').classList.remove('hidden');
-                    }, 1000);
-                    return;
-                }
-
-                let allDead = true;
+                let aliveCount = 0;
                 this.enemies.forEach(e => {
                     e.update(dt);
-                    if (e.state !== 'DEAD') allDead = false;
+                    if (!e.isDead()) aliveCount++;
                 });
+                
+                // Update counter on the fly if needed, but better to just set it on kill inside takeDamage
+                document.getElementById('enemy-counter').innerText = `Inimigos restantes: ${aliveCount}`;
 
-                // Phase transition
-                if (allDead && this.enemies.length > 0) {
-                    this.enemies = []; // Clear corpses
-                    if (this.currentPhase < this.phases.length - 1) {
-                        this.startPhase(this.currentPhase + 1);
-                    } else {
-                        setTimeout(() => this.winGame(), 1500);
-                    }
+                // Next Phase logic
+                if (aliveCount === 0 && this.enemies.length > 0) {
+                    this.enemies = []; 
+                    if (this.currentPhase < 8) this.startPhase(this.currentPhase + 1);
+                    else setTimeout(() => this.winGame(), 2000);
                 }
 
-                // Update particles & texts
+                // Cleanup FX
                 for (let i = this.particles.length - 1; i >= 0; i--) {
                     this.particles[i].update(dt);
                     if (this.particles[i].life <= 0) this.particles.splice(i, 1);
@@ -1122,72 +1139,52 @@
                     this.floatingTexts[i].update(dt);
                     if (this.floatingTexts[i].life <= 0) this.floatingTexts.splice(i, 1);
                 }
-
-                updateInputs();
             },
 
             draw() {
-                // Clear and background
                 ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
-                // Grid/Arena lines for depth
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
-                ctx.lineWidth = 2;
-                for(let i=0; i<GAME_WIDTH; i+=100) {
-                    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, GAME_HEIGHT); ctx.stroke();
-                }
-                for(let i=0; i<GAME_HEIGHT; i+=100) {
-                    ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(GAME_WIDTH, i); ctx.stroke();
-                }
+                // BG Grid Setup
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+                ctx.lineWidth = 1;
+                for(let i=0; i<GAME_WIDTH; i+=100) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, GAME_HEIGHT); ctx.stroke(); }
+                for(let i=0; i<GAME_HEIGHT; i+=100) { ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(GAME_WIDTH, i); ctx.stroke(); }
 
-                // Shake effect logic
                 ctx.save();
                 if (this.shakeTime > 0) {
-                    let dx = (Math.random() - 0.5) * 10;
-                    let dy = (Math.random() - 0.5) * 10;
-                    ctx.translate(dx, dy);
+                    ctx.translate((Math.random()-0.5)*12, (Math.random()-0.5)*12);
                     this.shakeTime--;
                 }
 
-                // Draw Entities sorted by Y (fake depth)
+                // Sorting to draw properly
                 let renderList = [this.player, ...this.enemies].sort((a, b) => (a.y+a.h) - (b.y+b.h));
-                
                 renderList.forEach(ent => {
-                    if (ent.state === 'DEAD') {
-                        ctx.globalAlpha = 0.3; // Corpses
-                        ctx.save();
-                        ctx.translate(ent.x + ent.w/2, ent.y + ent.h);
-                        ctx.scale(1, 0.2); // Flatten
-                        ent.x = -ent.w/2; ent.y = -ent.h;
-                        ent.draw(ctx);
-                        ctx.restore();
-                        ctx.globalAlpha = 1;
-                        // Restore coordinates hack
-                        ent.x += ent.w/2; ent.y += ent.h;
-                    } else {
+                    if (ent.isDead() && !ent.isPlayer) {
+                        ctx.globalAlpha = 0.2;
+                        ctx.save(); ctx.translate(ent.x + ent.w/2, ent.y + ent.h); ctx.scale(1, 0.2); 
+                        ent.x = -ent.w/2; ent.y = -ent.h; ent.draw(ctx);
+                        ctx.restore(); ctx.globalAlpha = 1;
+                        ent.x += ent.w/2; ent.y += ent.h; // restore
+                    } else if (!ent.isDead()) {
                         ent.draw(ctx);
                     }
                 });
 
-                // Particles & Texts
                 this.particles.forEach(p => p.draw(ctx));
                 this.floatingTexts.forEach(t => t.draw(ctx));
 
-                // Darkness effect for Phase 7 (Ninja)
-                if (this.currentPhase === 6 && this.state === 'PLAYING') {
-                    let gradient = ctx.createRadialGradient(
-                        this.player.x + this.player.w/2, this.player.y + this.player.h/2, 100, 
-                        this.player.x + this.player.w/2, this.player.y + this.player.h/2, 500
-                    );
-                    gradient.addColorStop(0, 'rgba(0,0,0,0)');
-                    gradient.addColorStop(1, 'rgba(0,0,0,0.95)');
-                    ctx.fillStyle = gradient;
-                    ctx.fillRect(-50, -50, GAME_WIDTH+100, GAME_HEIGHT+100);
+                // Darkness Phase 7
+                if (this.currentPhase === 7 && gameState === 'GAMEPLAY') {
+                    let p = this.player;
+                    let grad = ctx.createRadialGradient(p.x+20, p.y+20, 150, p.x+20, p.y+20, 600);
+                    grad.addColorStop(0, 'rgba(0,0,0,0)');
+                    grad.addColorStop(1, 'rgba(0,0,0,0.98)');
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(-100, -100, GAME_WIDTH+200, GAME_HEIGHT+200);
                 }
 
-                // Red flash on player hurt
-                if (this.player && this.player.state === 'HURT') {
-                    ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+                if (this.player.state === 'HURT') {
+                    ctx.fillStyle = 'rgba(255, 0, 0, 0.25)';
                     ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
                 }
 
@@ -1198,22 +1195,14 @@
                 let dt = (timestamp - this.lastTime) / 1000;
                 this.lastTime = timestamp;
                 
-                // Cap dt to prevent huge jumps if tab is inactive
-                if (dt > 0.1) dt = 0.1;
+                if (dt > 0.1) dt = 0.1; // Limit tab inactive huge jump
 
                 this.update(dt);
                 this.draw();
 
-                requestAnimationFrame(this.loop.bind(this));
+                requestAnimationFrame((ts) => this.loop(ts));
             }
         };
-
-        // Allow restarting from any screen by pressing 'R'
-        window.addEventListener('keydown', (e) => {
-            if (e.key.toLowerCase() === 'r') {
-                if (game.state === 'GAMEOVER') game.restartPhase();
-            }
-        });
 
     </script>
 </body>
