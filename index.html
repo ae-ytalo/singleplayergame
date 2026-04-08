@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Arena de Espadas 2D - Hardcore</title>
+    <title>Jogo de homem</title>
     <style>
         :root {
             --primary: #00ffcc;
@@ -150,6 +150,38 @@
             text-shadow: 0 0 20px rgba(0, 255, 204, 0.5);
             text-transform: uppercase;
             letter-spacing: 2px;
+        }
+
+        /* EFEITOS DO MENU INICIAL MACHO ALFA */
+        .alpha-title {
+            animation: alphaTitlePulse 1.5s ease-in-out infinite alternate, titleGlitch 3s linear infinite;
+        }
+
+        @keyframes alphaTitlePulse {
+            0% { text-shadow: 0 0 20px rgba(255, 0, 0, 0.5), 0 0 40px rgba(255, 0, 0, 0.3); transform: scale(1); color: #ff3333; }
+            100% { text-shadow: 0 0 40px rgba(255, 100, 0, 0.8), 0 0 80px rgba(255, 0, 0, 0.6); transform: scale(1.05); color: #ffaa00; }
+        }
+
+        @keyframes titleGlitch {
+            0%, 96%, 98%, 100% { transform: translate(0, 0); }
+            97% { transform: translate(-4px, 3px); }
+            99% { transform: translate(4px, -3px); }
+        }
+
+        .alpha-subtitle {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #ff3366;
+            text-shadow: 0 0 10px #ff0000;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 30px;
+            animation: neonFlicker 2.5s infinite alternate;
+        }
+
+        @keyframes neonFlicker {
+            0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; text-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000; transform: scale(1); }
+            20%, 24%, 55% { opacity: 0.4; text-shadow: none; transform: scale(0.98); }
         }
 
         h2 {
@@ -300,8 +332,8 @@
 
         <!-- Main Menu -->
         <div id="screen-menu" class="screen">
-            <h1>Arena Hardcore</h1>
-            <p>8 fases brutais. Padrões de IA complexos. Apenas os reflexos perfeitos sobreviverão.</p>
+            <h1 class="alpha-title">Jogo de macho alfa</h1>
+            <p class="alpha-subtitle">Se morrer é gay</p>
             <button class="btn" onclick="game.start()">Iniciar Jogo</button>
             
             <div class="controls-info">
