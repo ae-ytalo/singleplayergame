@@ -11,6 +11,7 @@
             --fast: #ff00ff;
             --tank: #8888aa;
             --ninja: #440066;
+            --sniper: #00ffff;
             --boss: #ffd700;
             --bg: #1a1a24;
             --panel: rgba(10, 10, 15, 0.85);
@@ -509,7 +510,7 @@
             }
         }
 
-        // NOVA CLASSE: Sistema de Projéteis para Pedras e Bolas de Fogo
+        // Sistema de Projéteis
         class Projectile {
             constructor(type, x, y, tx, ty, damage, currentPhase) {
                 this.type = type;
@@ -524,6 +525,10 @@
                     this.speed = 130 + (currentPhase * 5); // Muito Lento
                     this.size = 28;
                     this.life = 8.0;
+                } else if (type === 'iceball') {
+                    this.speed = 450 + (currentPhase * 5); // Congelante e Rápido
+                    this.size = 10;
+                    this.life = 4.0;
                 }
                 
                 this.vx = Math.cos(angle) * this.speed;
@@ -546,18 +551,29 @@
                     if (Math.random() < 0.4) {
                         game.particles.push(new Particle(this.x, this.y + this.size*0.8, '#666', 30, 4, 0.4)); // Rastro de poeira
                     }
+                } else if (this.type === 'iceball') {
+                    game.particles.push(new Particle(this.x, this.y, '#ffffff', 40, 2, 0.2));
+                    game.particles.push(new Particle(this.x, this.y, '#aaddff', 60, 3, 0.3));
                 }
                 
                 // Colisão com o Player
                 let p = game.player;
-                if (!p.isDead() && p.state !== 'DASH') { // CORREÇÃO: Projéteis ignoram o jogador se estiver dando Dash (I-Frames)
+                if (!p.isDead() && p.state !== 'DASH') { // Projéteis ignoram o jogador se estiver dando Dash (I-Frames)
                     let dist = Utils.dist(this.x, this.y, p.x + p.w/2, p.y + p.h/2);
                     if (dist < this.size + p.w/2) {
+                        
+                        // Mecânica de Congelamento (Iceball do Atirador)
+                        if (this.type === 'iceball') {
+                            p.freezeTimer = 1.5;
+                            p.state = 'FROZEN';
+                            game.spawnFloatingText(p.x+p.w/2, p.y - 20, "CONGELADO!", "#00ffff", true);
+                        }
+                        
                         p.takeDamage(this.damage, this.x, this.y, true); // true = Pode fazer Parry
                         this.life = 0; // Destrói no impacto
                         game.screenShake(this.type === 'boulder' ? 25 : 10);
                         
-                        let pColor = this.type === 'boulder' ? '#888' : '#ffaa00';
+                        let pColor = this.type === 'boulder' ? '#888' : (this.type === 'iceball' ? '#00ffff' : '#ffaa00');
                         for(let i=0; i<25; i++) {
                             game.particles.push(new Particle(this.x, this.y, pColor, 250, 4, 0.5));
                         }
@@ -578,20 +594,22 @@
                     ctx.save();
                     ctx.translate(this.x, this.y);
                     ctx.rotate(this.rotation);
-                    
-                    // Corpo rochoso
                     ctx.fillStyle = '#555';
                     ctx.beginPath(); ctx.arc(0, 0, this.size, 0, Math.PI*2); ctx.fill();
-                    
-                    // Texturas da pedra (crateras)
                     ctx.fillStyle = '#333';
                     ctx.beginPath(); ctx.arc(-this.size*0.3, -this.size*0.3, this.size*0.25, 0, Math.PI*2); ctx.fill();
                     ctx.beginPath(); ctx.arc(this.size*0.4, this.size*0.1, this.size*0.3, 0, Math.PI*2); ctx.fill();
                     ctx.beginPath(); ctx.arc(-this.size*0.1, this.size*0.4, this.size*0.2, 0, Math.PI*2); ctx.fill();
-                    
                     ctx.strokeStyle = '#222';
                     ctx.lineWidth = 2;
                     ctx.beginPath(); ctx.arc(0, 0, this.size, 0, Math.PI*2); ctx.stroke();
+                    ctx.restore();
+                } else if (this.type === 'iceball') {
+                    ctx.save();
+                    ctx.fillStyle = '#aaddff';
+                    ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath(); ctx.arc(this.x, this.y, this.size*0.5, 0, Math.PI*2); ctx.fill();
                     ctx.restore();
                 }
             }
@@ -617,8 +635,8 @@
         class Player extends Entity {
             constructor() {
                 super(GAME_WIDTH / 2, GAME_HEIGHT / 2, 40, 40, 100);
-                this.speed = 300; // pixels por segundo (aprox 5.0 px/frame)
-                this.color = '#00ffcc'; // Fix: Usando Hex para renderizar sem bugs no Canvas
+                this.speed = 300; 
+                this.color = '#00ffcc'; 
                 this.attackCooldown = 0;
                 this.defendCooldown = 0;
                 this.combo = 0;
@@ -627,9 +645,14 @@
                 // Sistema de Stamina e Dash
                 this.maxStamina = 100;
                 this.stamina = 100;
+
+                // Sistema de Congelamento
+                this.freezeTimer = 0;
             }
 
             dash() {
+                if (this.freezeTimer > 0) return; // Não pode dar dash congelado
+                
                 if (this.stamina >= 25 && this.state !== 'DASH' && this.state !== 'DEFEND') {
                     this.stamina -= 25; // 4 dashes cravados com barra de 100
                     this.state = 'DASH';
@@ -644,7 +667,7 @@
                     if (dx === 0 && dy === 0) { dx = this.dirX; dy = this.dirY; }
                     
                     let len = Math.sqrt(dx*dx + dy*dy);
-                    this.vx = (dx/len) * 2400; // Velocidade extrema de fuga aumentada drasticamente (era 900)
+                    this.vx = (dx/len) * 2400; // Velocidade extrema de fuga aumentada drasticamente
                     this.vy = (dy/len) * 2400;
                     
                     // Efeito de partículas do Dash
@@ -666,6 +689,17 @@
                 if (this.stamina < this.maxStamina) {
                     this.stamina += 15 * dt; // Demora aprox 6.6s pra ir de 0 a 100
                     if (this.stamina > this.maxStamina) this.stamina = this.maxStamina;
+                }
+
+                // ESTADO: CONGELADO (Sobrescreve os outros)
+                if (this.freezeTimer > 0) {
+                    this.freezeTimer -= dt;
+                    this.vx = 0; this.vy = 0; // Trava movimentação total
+                    if (this.freezeTimer <= 0) {
+                        this.state = 'IDLE';
+                    }
+                    this.updateUI();
+                    return; // Retorna sem processar inputs
                 }
 
                 // Handle States
@@ -707,7 +741,7 @@
             }
 
             attack() {
-                if (this.attackCooldown > 0 || this.state === 'DEFEND') return;
+                if (this.attackCooldown > 0 || this.state === 'DEFEND' || this.freezeTimer > 0) return;
                 this.state = 'ATTACK';
                 this.stateTimer = 0;
                 this.attackCooldown = 0.5; // Exactly 0.5s requirement
@@ -756,19 +790,19 @@
             }
 
             defend() {
-                if (this.defendCooldown > 0 || this.state === 'ATTACK' || this.state === 'DEFEND') return;
+                if (this.defendCooldown > 0 || this.state === 'ATTACK' || this.state === 'DEFEND' || this.freezeTimer > 0) return;
                 this.state = 'DEFEND';
                 this.stateTimer = 0;
                 this.vx = 0; this.vy = 0;
             }
 
             takeDamage(amount, sourceX, sourceY, canBeParried = true) {
-                if (this.isDead() || this.state === 'DASH') return; // CORREÇÃO DE BUG: I-Frames ativos durante o Dash! Dano ignorado.
+                if (this.isDead() || this.state === 'DASH') return; // I-Frames ativos durante o Dash! Dano ignorado.
 
                 let dmg = amount;
                 let parried = false;
 
-                if (this.state === 'DEFEND') {
+                if (this.state === 'DEFEND' && this.freezeTimer <= 0) {
                     // Timing perfeito (< 0.15s) = Parry
                     if (this.stateTimer <= 0.15 && canBeParried) {
                         parried = true;
@@ -791,8 +825,11 @@
 
                 if (!parried && dmg > 0) {
                     this.hp -= dmg;
-                    this.state = 'HURT';
-                    this.stateTimer = 0;
+                    // Se não estiver congelado, aplica stun
+                    if (this.freezeTimer <= 0) {
+                        this.state = 'HURT';
+                        this.stateTimer = 0;
+                    }
                     
                     let angle = Math.atan2(this.y - sourceY, this.x - sourceX);
                     this.vx = Math.cos(angle) * 300;
@@ -816,14 +853,12 @@
                 let fill = document.getElementById('hp-fill');
                 fill.style.width = `${pct * 100}%`;
                 
-                // RGB progressivo
                 if (pct > 0.6) fill.style.background = 'linear-gradient(90deg, #00cc00, #00ffcc)';
                 else if (pct > 0.3) fill.style.background = 'linear-gradient(90deg, #ccaa00, #ffff00)';
                 else fill.style.background = 'linear-gradient(90deg, #cc0000, #ff3333)';
                 
                 document.getElementById('hp-text').innerText = `${Math.floor(this.hp)} / ${this.maxHp}`;
 
-                // Atualizar barra de Stamina
                 let stPct = Math.max(0, this.stamina / this.maxStamina);
                 document.getElementById('stamina-fill').style.width = `${stPct * 100}%`;
             }
@@ -833,8 +868,20 @@
                 ctx.fillStyle = 'rgba(0,0,0,0.5)';
                 ctx.beginPath(); ctx.ellipse(this.x + 20, this.y + 40, 20, 10, 0, 0, Math.PI*2); ctx.fill();
 
+                // Bloco de Gelo Congelado (Cubo em volta do jogador)
+                if (this.freezeTimer > 0) {
+                    ctx.fillStyle = 'rgba(150, 220, 255, 0.6)';
+                    ctx.fillRect(this.x - 5, this.y - 5, this.w + 10, this.h + 10);
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(this.x - 5, this.y - 5, this.w + 10, this.h + 10);
+                }
+
                 // Body
-                ctx.fillStyle = this.state === 'HURT' ? '#ffaaaa' : this.color;
+                ctx.fillStyle = (this.state === 'HURT' && this.freezeTimer <= 0) ? '#ffaaaa' : this.color;
+                // Se congelado, fica mais escuro/azulado o corpo principal
+                if (this.freezeTimer > 0) ctx.fillStyle = '#0088cc';
+                
                 ctx.fillRect(this.x, this.y, this.w, this.h);
 
                 // Eyes
@@ -879,22 +926,26 @@
                 // Configurar Perfis Hardcore com Cores em Hexadecimal (Fix para Canvas)
                 if(type === 'basic') { this.color='#ffff00'; this.speed=150; this.maxAttackCD=2.2; this.w=40; this.h=40; }
                 if(type === 'fast')  { this.color='#ff00ff'; this.speed=270; this.maxAttackCD=0.6; this.w=35; this.h=35; }
-                if(type === 'tank')  { this.color='#8888aa'; this.speed=132; this.maxAttackCD=2.8; this.w=85; this.h=85; } // Tamanho do Tanque aumentado para 85x85
+                if(type === 'tank')  { this.color='#8888aa'; this.speed=132; this.maxAttackCD=2.8; this.w=85; this.h=85; }
                 if(type === 'ninja') { this.color='#440066'; this.speed=210; this.maxAttackCD=0.5; this.w=35; this.h=35; }
-                if(type === 'boss')  { this.color='#ffd700'; this.speed=120; this.maxAttackCD=2.2; this.w=90; this.h=90; } // Tamanho padrão do Boss aumentado
+                if(type === 'boss')  { this.color='#ffd700'; this.speed=120; this.maxAttackCD=2.2; this.w=90; this.h=90; }
+                if(type === 'sniper'){ this.color='#00ffff'; this.speed=340; this.maxAttackCD=1.5; this.w=25; this.h=25; this.fatigue=0; this.isTired=false; } // O ATIRADOR NOVO
 
-                if (game.currentPhase === 5 && type === 'tank') this.speed = 100; // Ajuste fino Fase 6
+                if (game.currentPhase === 4 && type === 'tank') this.speed = 100;
 
                 this.bossPhase = 1;
                 this.multiHitCount = 0;
                 this.isBlocking = false;
-                this.blockTimer = 0; // Adicionado para controle do Básico/Rápido
+                this.blockTimer = 0;
                 
-                // Variáveis para Efeitos Visuais (Auras)
+                // Variáveis da Barreira do Tanque
+                this.shieldCooldown = 3.0;
+                this.shieldTimer = 0;
+                this.shieldHits = 0;
+                
                 this.trail = [];
                 this.auraParticles = [];
 
-                // Variáveis de Projéteis e Tamanho
                 this.boulderTimer = 0;
                 this.fireballTimer = 0;
                 this.targetW = this.w;
@@ -916,7 +967,7 @@
                     }
                 }
 
-                // Regeneração (Tanque e Boss)
+                // Regeneração e Escudo (Tanque e Boss)
                 if (this.type === 'tank' || this.type === 'boss') {
                     this.regenTimer += dt;
                     if (this.regenTimer >= 30) {
@@ -925,8 +976,27 @@
                         this.hp = Math.min(this.maxHp, this.hp + amount);
                         game.spawnFloatingText(this.x+this.w/2, this.y, `+${amount} HP`, "#0f0");
                     }
+                    
+                    // NOVA LÓGICA DO ESCUDO DO TANQUE
                     if (this.type === 'tank') {
-                        this.isBlocking = this.hp < this.maxHp * 0.5;
+                        if (this.isBlocking) {
+                            this.shieldTimer -= dt;
+                            // Desliga o escudo após 4 a 10 segundos
+                            if (this.shieldTimer <= 0) {
+                                this.isBlocking = false;
+                                let hpRatio = this.hp / this.maxHp;
+                                // Se a vida estiver < 40%, o cooldown cai pela metade (Usa com mais frequência)
+                                this.shieldCooldown = Utils.random(5, 9) * (hpRatio < 0.4 ? 0.4 : 1.0); 
+                            }
+                        } else {
+                            this.shieldCooldown -= dt;
+                            // Liga o escudo
+                            if (this.shieldCooldown <= 0) {
+                                this.isBlocking = true;
+                                this.shieldTimer = Utils.random(4, 10); // Dura entre 4 a 10 segundos
+                                this.shieldHits = 0; // Reseta os golpes tomados na barreira
+                            }
+                        }
                     }
                 }
 
@@ -951,28 +1021,27 @@
                 }
 
                 // Gerenciar Efeitos de Aura/Trail
-                if (this.type === 'fast') {
+                if (this.type === 'fast' || this.type === 'sniper') {
                     this.trail.push({x: this.x, y: this.y});
-                    if (this.trail.length > 6) this.trail.shift();
+                    if (this.trail.length > (this.type === 'sniper' ? 4 : 6)) this.trail.shift();
                 }
 
                 // Aumentar Tamanho e Modificar Aura do Boss na Fase 3
                 if (this.type === 'boss') {
                     if (this.bossPhase === 3) {
-                        this.targetW = 140; // Fica GIGANTE com raiva
+                        this.targetW = 140; 
                         this.targetH = 140;
                     } else {
-                        this.targetW = 90; // Novo tamanho padrão
+                        this.targetW = 90; 
                         this.targetH = 90;
                     }
-                    // Interpolação de inchaço gradual
                     this.w += (this.targetW - this.w) * dt * 3;
                     this.h += (this.targetH - this.h) * dt * 3;
                 }
 
                 if (this.type === 'ninja' || this.type === 'boss') {
                     let isDyingBoss = this.type === 'boss' && this.bossPhase === 3;
-                    let spawnChance = this.type === 'boss' ? (isDyingBoss ? 0.9 : 0.4) : 0.3; // Mais partículas e desespero
+                    let spawnChance = this.type === 'boss' ? (isDyingBoss ? 0.9 : 0.4) : 0.3; 
                     
                     if (Math.random() < spawnChance) {
                         this.auraParticles.push({
@@ -987,7 +1056,7 @@
                         let p = this.auraParticles[i];
                         p.x += p.vx * dt;
                         p.y += p.vy * dt;
-                        p.life -= dt * (this.type === 'boss' ? (isDyingBoss ? 1.2 : 1.8) : 2.0); // Fogo sobe muito mais agitado
+                        p.life -= dt * (this.type === 'boss' ? (isDyingBoss ? 1.2 : 1.8) : 2.0); 
                         if (p.life <= 0) this.auraParticles.splice(i, 1);
                     }
                 }
@@ -1010,7 +1079,61 @@
                     }
                 });
 
-                // Range Check (Minimum 400px detection for hardcore requirement)
+                // ==========================================
+                // IA PROFILE: ATIRADOR (NOVA FASE 7) - Kiting
+                // ==========================================
+                if (this.type === 'sniper') {
+                    if (this.isTired) {
+                        this.fatigue -= dt; // Recupera fôlego
+                        if (this.fatigue <= 0) {
+                            this.isTired = false;
+                            this.fatigue = 0;
+                        }
+                    } else {
+                        this.fatigue += dt; // Fica cansado ao longo do tempo (4 segs)
+                        if (this.fatigue > 4.0) {
+                            this.isTired = true;
+                            this.fatigue = 2.5; // Fica vulnerável por 2.5s
+                            this.state = 'IDLE';
+                            game.spawnFloatingText(this.x + this.w/2, this.y - 10, "*Ofegante*", "#aaddff");
+                        } else {
+                            this.state = 'RUN';
+                            // Fugir
+                            if (dist < 300) {
+                                let angle = Math.atan2(this.y - p.y, this.x - p.x); // Foge (direção oposta)
+                                this.x += Math.cos(angle) * this.speed * dt;
+                                this.y += Math.sin(angle) * this.speed * dt;
+                                this.dirX = Math.cos(angle) > 0 ? 1 : -1;
+
+                                // Dash Burst se jogador encostar (< 120px)
+                                if (dist < 120 && Math.random() < 0.1) {
+                                    this.x += Math.cos(angle) * 150;
+                                    this.y += Math.sin(angle) * 150;
+                                    for(let i=0; i<8; i++) game.particles.push(new Particle(this.x, this.y, '#ffffff', 200, 3, 0.4));
+                                }
+                            } else if (dist > 500) {
+                                // Se distanciou muito, volta devagar pra atirar
+                                let angle = Math.atan2(p.y - this.y, p.x - this.x);
+                                this.x += Math.cos(angle) * (this.speed * 0.5) * dt;
+                                this.y += Math.sin(angle) * (this.speed * 0.5) * dt;
+                            } else {
+                                // Distância perfeita para Atirar (300 - 500)
+                                if (this.attackCooldown <= 0) {
+                                    this.attackCooldown = this.maxAttackCD;
+                                    let iceDmg = Math.floor(Utils.random(6, 10)); // Dano baixo
+                                    game.projectiles.push(new Projectile('iceball', this.x + this.w/2, this.y + this.h/2, p.x + p.w/2, p.y + p.h/2, iceDmg, game.currentPhase));
+                                    // Recuo ao atirar
+                                    let recoilAngle = Math.atan2(this.y - p.y, this.x - p.x);
+                                    this.vx = Math.cos(recoilAngle) * 200;
+                                    this.vy = Math.sin(recoilAngle) * 200;
+                                }
+                            }
+                        }
+                    }
+                    return; // Retorna para não cair no Range Check global e estragar a IA
+                }
+
+                // Range Check global para demais inimigos
                 if (dist > 800) { this.state = 'IDLE'; return; }
 
                 this.state = 'RUN';
@@ -1169,25 +1292,23 @@
                 let isNinjaTriple = false;
 
                 if (this.type === 'basic') baseDmg = Utils.random(10, 12);
-                else if (this.type === 'fast') baseDmg = Utils.random(10, 14); // Atualizado para fase 4+
-                else if (this.type === 'tank') baseDmg = this.multiHitCount === 0 && this.maxAttackCD === 2.8 ? 18 : Utils.random(16, 20); // Last hit of special is stronger
-                else if (this.type === 'ninja') { baseDmg = Utils.random(18, 24); isNinjaTriple = true; } // BUFF DE DANO DO NINJA FASE 7
+                else if (this.type === 'fast') baseDmg = Utils.random(10, 14); 
+                else if (this.type === 'tank') baseDmg = this.multiHitCount === 0 && this.maxAttackCD === 2.8 ? 18 : Utils.random(16, 20); 
+                else if (this.type === 'ninja') { baseDmg = Utils.random(18, 24); isNinjaTriple = true; } 
                 else if (this.type === 'boss') baseDmg = Utils.random(15, 18);
 
                 let phaseMult = 1 + (game.currentPhase * 0.1);
                 baseDmg = Math.floor(baseDmg * phaseMult);
 
-                // --- NOVA LÓGICA DE COLISÃO RIGOROSA E HITBOX RETANGULAR ---
+                // --- LÓGICA DE COLISÃO RIGOROSA E HITBOX RETANGULAR ---
                 let hitRange = this.type === 'boss' ? this.w * 0.5 : (this.type === 'tank' ? 45 : 30);
                 let hitHeight = this.type === 'boss' ? this.h * 0.6 : (this.type === 'tank' ? 50 : 20);
                 let hitY = this.y + (this.h - hitHeight) / 2;
                 
                 let hitbox;
                 if (isNinjaTriple) {
-                    // Ninja atinge uma área ampla ao redor
                     hitbox = { x: this.x - 20, y: this.y - 20, w: this.w + 40, h: this.h + 40 };
                 } else {
-                    // Outros inimigos atingem uma caixa exatamente à frente deles
                     let hx = this.dirX > 0 ? this.x + this.w : this.x - hitRange;
                     hitbox = { x: hx, y: hitY, w: hitRange, h: hitHeight };
                 }
@@ -1195,7 +1316,7 @@
                 let p = game.player;
                 let pRect = { x: p.x, y: p.y, w: p.w, h: p.h };
 
-                // Verifica colisão precisa de retângulos (Ignora acertos fantasmas)
+                // Verifica colisão precisa
                 if (Utils.rectIntersect(hitbox, pRect)) {
                     p.takeDamage(baseDmg, this.x, this.y);
                 }
@@ -1208,7 +1329,7 @@
 
                 // Pequena chance de Basic e Fast tentarem bloquear ao receber golpes frontais
                 if ((this.type === 'basic' || this.type === 'fast') && !this.isBlocking && (this.state === 'IDLE' || this.state === 'RUN')) {
-                    if (Math.random() < 0.20) { // 20% de chance
+                    if (Math.random() < 0.20) { 
                         this.isBlocking = true;
                         this.blockTimer = 0.5;
                     }
@@ -1216,22 +1337,44 @@
 
                 let dmg = amount;
                 if (this.isBlocking) {
-                    dmg = Math.floor(amount * 0.6); // 40% reduction
-                    game.spawnFloatingText(this.x+this.w/2, this.y, "Bloqueado", "#888");
+                    if (this.type === 'tank') {
+                        this.shieldHits++;
+                        // Se tomar mais de 5 golpes, o escudo quebra!
+                        if (this.shieldHits > 5) {
+                            this.isBlocking = false;
+                            this.shieldCooldown = 6.0; // Punição por quebrar: demora 6s pra usar de novo
+                            dmg = amount; // Leva o dano desse golpe inteiro!
+                            
+                            game.spawnFloatingText(this.x+this.w/2, this.y, "QUEBRADO!", "#ff3333", true);
+                            game.screenShake(12);
+                            
+                            // Efeito de partículas do escudo quebrando
+                            for(let i=0; i<15; i++) game.particles.push(new Particle(this.x+this.w/2, this.y+this.h/2, '#8888aa', 250, 4, 0.4));
+                        } else {
+                            dmg = 0; // Defesa INABALÁVEL (0 de dano)
+                            game.spawnFloatingText(this.x+this.w/2, this.y, `INABALÁVEL! (${this.shieldHits}/5)`, "#8888aa");
+                        }
+                    } else {
+                        dmg = Math.floor(amount * 0.6); // 40% reduction para os outros
+                        game.spawnFloatingText(this.x+this.w/2, this.y, "Bloqueado", "#888");
+                    }
                 }
                 if (this.type === 'ninja' && isCrit) {
                     dmg *= 2; // Fraqueza: Parry reflete 2x
                 }
 
-                this.hp -= dmg;
-                this.state = 'HURT';
-                this.stateTimer = 0;
-                
-                let angle = Math.atan2(this.y - sourceY, this.x - sourceX);
-                this.vx = Math.cos(angle) * (this.type === 'boss' || this.type === 'tank' ? 50 : 150);
-                this.vy = Math.sin(angle) * (this.type === 'boss' || this.type === 'tank' ? 50 : 150);
+                // Tanque defendendo ignora o stun (HURT) e o recuo (knockback) para continuar se movendo
+                if (dmg > 0) {
+                    this.hp -= dmg;
+                    this.state = 'HURT';
+                    this.stateTimer = 0;
+                    
+                    let angle = Math.atan2(this.y - sourceY, this.x - sourceX);
+                    this.vx = Math.cos(angle) * (this.type === 'boss' || this.type === 'tank' ? 50 : 150);
+                    this.vy = Math.sin(angle) * (this.type === 'boss' || this.type === 'tank' ? 50 : 150);
 
-                game.spawnFloatingText(this.x+this.w/2, this.y, `-${dmg}`, isCrit ? '#ff00ff' : '#fff', isCrit);
+                    game.spawnFloatingText(this.x+this.w/2, this.y, `-${dmg}`, isCrit ? '#ff00ff' : '#fff', isCrit);
+                }
                 
                 for(let i=0; i<8; i++) game.particles.push(new Particle(this.x+this.w/2, this.y+this.h/2, this.color, 150, 4, 0.3));
 
@@ -1247,7 +1390,6 @@
 
                 // --- EFEITOS VISUAIS DE AURA ---
                 if (this.type === 'basic') {
-                    // Aura pulsante de energia pura
                     ctx.save();
                     ctx.globalAlpha = 0.2 + Math.sin(performance.now() * 0.005) * 0.1;
                     ctx.fillStyle = this.color;
@@ -1257,20 +1399,18 @@
                     ctx.restore();
                 }
                 else if (this.type === 'fast') {
-                    // Aura de Vento/Velocidade (Trail effect)
                     this.trail.forEach((t, i) => {
                         ctx.globalAlpha = (i / this.trail.length) * 0.4;
-                        ctx.fillStyle = '#00ffff'; // Vento ciano
+                        ctx.fillStyle = '#00ffff'; 
                         ctx.fillRect(t.x, t.y, this.w, this.h);
                     });
                     ctx.globalAlpha = 1.0;
                 }
                 else if (this.type === 'tank') {
-                    // Aura de Gelo/Pedra (Escudo rotativo)
                     ctx.save();
                     ctx.translate(this.x + this.w/2, this.y + this.h/2);
                     ctx.rotate(this.aiTimer * 1.5);
-                    ctx.strokeStyle = '#88ccff'; // Cor de gelo
+                    ctx.strokeStyle = '#88ccff'; 
                     ctx.lineWidth = 2;
                     ctx.setLineDash([8, 6]);
                     ctx.beginPath();
@@ -1279,11 +1419,10 @@
                     ctx.restore();
                 }
                 else if (this.type === 'ninja') {
-                    // Aura de Sombras / Fumaça Negra
                     ctx.save();
                     this.auraParticles.forEach(p => {
                         ctx.globalAlpha = Math.max(0, p.life * 0.6);
-                        ctx.fillStyle = '#110022'; // Sombra escura
+                        ctx.fillStyle = '#110022'; 
                         ctx.beginPath();
                         ctx.arc(p.x, p.y, this.w * 0.35, 0, Math.PI * 2);
                         ctx.fill();
@@ -1291,12 +1430,10 @@
                     ctx.restore();
                 }
                 else if (this.type === 'boss') {
-                    // Aura de Fogo Divino e Ofegante
                     ctx.save();
                     let isDying = this.bossPhase === 3;
                     
                     if (isDying) {
-                        // Pulso central ardente de fogo
                         let pulse = Math.sin(performance.now() * 0.015) * 0.15 + 0.85;
                         ctx.globalAlpha = 0.4 * pulse;
                         ctx.fillStyle = '#ff1100';
@@ -1308,24 +1445,50 @@
                     this.auraParticles.forEach(p => {
                         ctx.globalAlpha = Math.max(0, p.life);
                         ctx.fillStyle = p.life > 0.6 ? '#ffff00' : (p.life > 0.3 ? '#ff6600' : '#ff0000');
-                        if (isDying && p.life < 0.2) ctx.fillStyle = '#ffffff'; // Ponta branca extremamente quente
+                        if (isDying && p.life < 0.2) ctx.fillStyle = '#ffffff'; 
                         ctx.beginPath();
                         ctx.arc(p.x, p.y, this.w * (isDying ? 0.35 : 0.25) * p.life, 0, Math.PI * 2);
                         ctx.fill();
                     });
                     ctx.restore();
                 }
+                else if (this.type === 'sniper') {
+                    // Efeito da aura do atirador + Exaustão (Ofegante)
+                    if (this.isTired) {
+                        let scale = 1 + Math.sin(performance.now() * 0.02) * 0.12;
+                        ctx.save();
+                        ctx.translate(this.x + this.w/2, this.y + this.h);
+                        ctx.scale(scale, 1/scale);
+                        ctx.fillStyle = this.color;
+                        ctx.fillRect(-this.w/2, -this.h, this.w, this.h);
+                        
+                        // Gota de Suor Cansado
+                        ctx.fillStyle = '#0088ff';
+                        ctx.beginPath(); ctx.arc(this.w/2 + 2, -this.h + 8 + (scale * 2), 3, 0, Math.PI*2); ctx.fill();
+                        ctx.restore();
+                    } else {
+                        // Trail de gelo enquanto foge rápido
+                        this.trail.forEach((t, i) => {
+                            ctx.globalAlpha = (i / this.trail.length) * 0.3;
+                            ctx.fillStyle = '#ffffff'; 
+                            ctx.fillRect(t.x, t.y, this.w, this.h);
+                        });
+                        ctx.globalAlpha = 1.0;
+                    }
+                }
 
-                // Shadow
-                ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                ctx.beginPath(); ctx.ellipse(this.x + this.w/2, this.y + this.h, this.w/2, 10, 0, 0, Math.PI*2); ctx.fill();
+                // Shadow (pula se for sniper cansado, pq o scale altera isso, desenhamos depois)
+                if (!(this.type === 'sniper' && this.isTired)) {
+                    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                    ctx.beginPath(); ctx.ellipse(this.x + this.w/2, this.y + this.h, this.w/2, 10, 0, 0, Math.PI*2); ctx.fill();
 
-                // Flash Logic
-                ctx.fillStyle = this.color;
-                if (this.state === 'HURT') ctx.fillStyle = '#fff';
-                if (this.state === 'ATTACK_WINDUP' && this.stateTimer % 0.1 < 0.05) ctx.fillStyle = '#fff';
+                    // Flash Logic
+                    ctx.fillStyle = this.color;
+                    if (this.state === 'HURT') ctx.fillStyle = '#fff';
+                    if (this.state === 'ATTACK_WINDUP' && this.stateTimer % 0.1 < 0.05) ctx.fillStyle = '#fff';
 
-                ctx.fillRect(this.x, this.y, this.w, this.h);
+                    ctx.fillRect(this.x, this.y, this.w, this.h);
+                }
 
                 // Boss Phases Aura
                 if (this.type === 'boss') {
@@ -1357,13 +1520,11 @@
                 if (this.state === 'ATTACK_REC' && this.stateTimer < 0.15) {
                     ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
                     if (this.type === 'ninja') {
-                        // 3 hits visuais
                         ctx.fillRect(this.x-10, this.y-10, this.w+20, 10);
                         ctx.fillRect(this.x-10, this.y+this.h, this.w+20, 10);
                         if (this.dirX > 0) ctx.fillRect(this.x+this.w, this.y, 20, this.h);
                         else ctx.fillRect(this.x-20, this.y, 20, this.h);
-                    } else {
-                        // O visual agora condiz EXATAMENTE com a hitbox de ataque implementada
+                    } else if (this.type !== 'sniper') { // Sniper atira projétil apenas
                         let hitRange = this.type === 'boss' ? this.w * 0.5 : (this.type === 'tank' ? 45 : 30);
                         let hitHeight = this.type === 'boss' ? this.h * 0.6 : (this.type === 'tank' ? 50 : 20);
                         let hitY = this.y + (this.h - hitHeight) / 2;
@@ -1385,21 +1546,25 @@
             enemies: [],
             particles: [],
             floatingTexts: [],
-            projectiles: [], // ADICIONADO ARRAY DE PROJÉTEIS
+            projectiles: [],
             currentPhase: 1,
             shakeTime: 0,
             lastTime: 0,
+            
+            // Variáveis do Mapa do Atirador
+            blackoutTimer: 0,
+            isBlackout: false,
             
             stats: { startTime: 0, kills: 0, parries: 0, dmg: 0 },
 
             phasesConfig: [
                 { id: 1, pHP: 120, title: "Fase 1: Tutorial", desc: "Padrão: linha reta. Ataque quando ele parar.", spawn: () => [new Enemy('basic', 1000, 360, 35)] },
-                { id: 2, pHP: 110, title: "Fase 2: Espaço", desc: "Controle a distância. Mantenha eles separados.", spawn: () => [new Enemy('basic', 900, 200, 35), new Enemy('basic', 900, 500, 35)] },
-                { id: 3, pHP: 100, title: "Fase 3: O Predador", desc: "Rosa antecipa seus movimentos. Cuidado!", spawn: () => [new Enemy('basic', 900, 200, 35), new Enemy('fast', 1000, 500, 28)] },
-                { id: 4, pHP: 95, title: "Fase 4: Caos", desc: "Mantenha um sempre entre você e o outro.", spawn: () => [new Enemy('fast', 300, 100, 32), new Enemy('fast', 1000, 600, 32)] },
-                { id: 5, pHP: 100, title: "Fase 5: O Tanque", desc: "Ataques lentos mas regenera vida. Acumule dano.", spawn: () => [new Enemy('tank', 1000, 360, 75)] },
-                { id: 6, pHP: 90, title: "Fase 6: O Inferno", desc: "Isole o Tanque dos Rápidos.", spawn: () => [new Enemy('tank', 900, 360, 75), new Enemy('fast', 400, 100, 34), new Enemy('fast', 400, 600, 34)] },
-                { id: 7, pHP: 100, title: "Fase 7: O Fantasma", desc: "Ele teletransporta para suas costas. Reaja!", spawn: () => [new Enemy('ninja', 1000, 360, 50)] }, // HP DO NINJA AUMENTADO PARA 50 (Buff Fase 7)
+                { id: 2, pHP: 100, title: "Fase 2: O Predador", desc: "Rosa antecipa seus movimentos. Cuidado!", spawn: () => [new Enemy('basic', 900, 200, 35), new Enemy('fast', 1000, 500, 28)] },
+                { id: 3, pHP: 95, title: "Fase 3: Caos", desc: "Mantenha um sempre entre você e o outro.", spawn: () => [new Enemy('fast', 300, 100, 32), new Enemy('fast', 1000, 600, 32)] },
+                { id: 4, pHP: 100, title: "Fase 4: O Tanque", desc: "Ataques lentos mas regenera vida. Cuidado com as rochas.", spawn: () => [new Enemy('tank', 1000, 360, 100)] }, // HP do Tanque aumentado para 100
+                { id: 5, pHP: 90, title: "Fase 5: O Inferno", desc: "Isole o Tanque dos Rápidos.", spawn: () => [new Enemy('tank', 900, 360, 110), new Enemy('fast', 400, 100, 34), new Enemy('fast', 400, 600, 34)] }, // HP do Tanque aumentado para 110
+                { id: 6, pHP: 100, title: "Fase 6: O Fantasma", desc: "Ele teletransporta para suas costas. Reaja!", spawn: () => [new Enemy('ninja', 1000, 360, 50)] },
+                { id: 7, pHP: 100, title: "Fase 7: O Atirador", desc: "Ele foge e atira gelo. Mas uma hora o fôlego dele acaba. Luzes piscando...", spawn: () => [new Enemy('sniper', 800, 360, 20)] },
                 { id: 8, pHP: 100, title: "Supremacia", desc: "Ele aprende. Mude sua estratégia a cada 40 de HP.", spawn: () => [new Enemy('boss', 1000, 360, 120)] }
             ],
 
@@ -1450,14 +1615,18 @@
                 this.enemies = [];
                 this.particles = [];
                 this.floatingTexts = [];
-                this.projectiles = []; // Reseta na troca de fase
+                this.projectiles = []; 
                 
+                // Reseta mecânica do escuro
+                this.blackoutTimer = 2.0; 
+                this.isBlackout = false;
+
                 this.player.maxHp = pData.pHP;
                 this.player.hp = pData.pHP;
                 this.player.x = 200;
                 this.player.y = GAME_HEIGHT / 2;
                 this.player.state = 'IDLE';
-                keysPressed = {}; // Clean inputs
+                keysPressed = {}; 
                 
                 document.getElementById('phase-display').innerText = `Fase ${pNum}/8`;
 
@@ -1466,7 +1635,7 @@
                 document.getElementById('announcement-desc').innerText = pData.desc;
                 const ann = document.getElementById('phase-announcement');
                 ann.classList.remove('show-announcement');
-                void ann.offsetWidth; // reflow
+                void ann.offsetWidth; 
                 ann.classList.add('show-announcement');
 
                 // Spawn with delay
@@ -1500,13 +1669,22 @@
                     if (!e.isDead()) aliveCount++;
                 });
                 
-                // Update counter on the fly if needed, but better to just set it on kill inside takeDamage
                 document.getElementById('enemy-counter').innerText = `Inimigos restantes: ${aliveCount}`;
 
                 // Atualizar Projéteis Livres
                 for (let i = this.projectiles.length - 1; i >= 0; i--) {
                     this.projectiles[i].update(dt);
                     if (this.projectiles[i].life <= 0) this.projectiles.splice(i, 1);
+                }
+
+                // Lógica de Piscada Elétrica e Escuridão (Fase 7)
+                if (this.currentPhase === 7 && aliveCount > 0) {
+                    this.blackoutTimer -= dt;
+                    if (this.blackoutTimer <= 0) {
+                        this.isBlackout = !this.isBlackout;
+                        // Tempo no claro (3s a 6s) -- Tempo no escuro completo (1s a 3.5s)
+                        this.blackoutTimer = this.isBlackout ? Utils.random(1.0, 3.5) : Utils.random(3.0, 6.0);
+                    }
                 }
 
                 // Next Phase logic
@@ -1557,7 +1735,7 @@
                         ctx.save(); ctx.translate(ent.x + ent.w/2, ent.y + ent.h); ctx.scale(1, 0.2); 
                         ent.x = -ent.w/2; ent.y = -ent.h; ent.draw(ctx);
                         ctx.restore(); ctx.globalAlpha = 1;
-                        ent.x += ent.w/2; ent.y += ent.h; // restore
+                        ent.x += ent.w/2; ent.y += ent.h; 
                     } else if (!ent.isDead()) {
                         ent.draw(ctx);
                     }
@@ -1566,8 +1744,8 @@
                 this.particles.forEach(p => p.draw(ctx));
                 this.floatingTexts.forEach(t => t.draw(ctx));
 
-                // Darkness Phase 7
-                if (this.currentPhase === 7 && gameState === 'GAMEPLAY') {
+                // Darkness Phase 6 (Fantasma)
+                if (this.currentPhase === 6 && gameState === 'GAMEPLAY') {
                     let p = this.player;
                     let grad = ctx.createRadialGradient(p.x+20, p.y+20, 150, p.x+20, p.y+20, 600);
                     grad.addColorStop(0, 'rgba(0,0,0,0)');
@@ -1576,7 +1754,14 @@
                     ctx.fillRect(-100, -100, GAME_WIDTH+200, GAME_HEIGHT+200);
                 }
 
-                if (this.player.state === 'HURT') {
+                // Blackout Mecânica de Piscar Fase 7 (Atirador)
+                if (this.currentPhase === 7 && this.isBlackout && gameState === 'GAMEPLAY') {
+                    // Escuro moderado, dá pra enxergar bem pouco e sem luzes em volta do player
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+                    ctx.fillRect(-100, -100, GAME_WIDTH+200, GAME_HEIGHT+200);
+                }
+
+                if (this.player.state === 'HURT' && this.player.freezeTimer <= 0) {
                     ctx.fillStyle = 'rgba(255, 0, 0, 0.25)';
                     ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
                 }
