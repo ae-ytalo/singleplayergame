@@ -327,6 +327,44 @@
             color: #fff;
         }
 
+        /* ESTILOS DO ANÚNCIO (SOCIAL BAR) NO PAUSE */
+        .ad-box {
+            margin: 20px 0;
+            padding: 15px;
+            border: 2px solid var(--primary);
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.7);
+            position: relative;
+            animation: adPulse 2s infinite alternate;
+            min-width: min(320px, 90vw);
+            min-height: 80px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 105;
+        }
+
+        .ad-label {
+            position: absolute;
+            top: -10px;
+            background: #0d0d14;
+            padding: 2px 15px;
+            color: var(--primary);
+            font-size: 10px;
+            letter-spacing: 2px;
+            border-radius: 8px;
+            border: 1px solid var(--primary);
+            text-transform: uppercase;
+            font-weight: bold;
+            box-shadow: 0 0 10px rgba(0, 255, 204, 0.3);
+        }
+
+        @keyframes adPulse {
+            0% { box-shadow: 0 0 10px rgba(0, 255, 204, 0.1); border-color: rgba(0, 255, 204, 0.3); }
+            100% { box-shadow: 0 0 30px rgba(0, 255, 204, 0.6); border-color: rgba(0, 255, 204, 1); }
+        }
+
         .desktop-only { display: inline; }
         .mobile-only { display: none; }
 
@@ -506,6 +544,16 @@
                 <span class="mobile-only">Toque em Continuar abaixo</span>
                 para retornar à batalha.
             </p>
+
+            <!-- CAIXA DE ANÚNCIO PROFISSIONAL -->
+            <div class="ad-box">
+                <div class="ad-label">Publicidade</div>
+                <div id="ad-content">
+                    <!-- Script do Social Bar Adsterra -->
+                    <script type="text/javascript" src="https://pl29129272.profitablecpmratenetwork.com/a3/64/2f/a3642fda0090f8307f41daf727d26c7d.js"></script>
+                </div>
+            </div>
+
             <button class="btn" style="margin-top: 20px;" onclick="game.togglePause()">Continuar</button>
         </div>
 
