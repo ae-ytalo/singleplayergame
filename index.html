@@ -236,6 +236,7 @@
             font-weight: bold;
             pointer-events: auto;
             touch-action: manipulation;
+            z-index: 10;
         }
 
         .btn:hover {
@@ -250,6 +251,7 @@
             background: rgba(0,0,0,0.5);
             border-radius: 10px;
             border: 1px solid #444;
+            z-index: 10;
         }
 
         .controls-info ul {
@@ -325,7 +327,7 @@
         }
 
         /* ========================================================
-           ESTILOS DO ANÚNCIO (BANNER HORIZONTAL) NAS TELAS FINAIS
+           ESTILOS DO ANÚNCIO (BANNER HORIZONTAL E MENU SOCIAL)
            ======================================================== */
         .ad-box {
             margin: 20px 0;
@@ -357,7 +359,7 @@
             align-items: center;
             flex-direction: column;
             z-index: 105;
-            overflow: hidden; /* Mantém o banner contido no mobile */
+            overflow: hidden; 
             max-width: 95vw;
         }
 
@@ -382,7 +384,6 @@
             box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
         }
 
-        /* Container escalável para o anúncio 468x60 caber em telas estreitas de celular */
         .ad-scaler {
             width: 468px;
             height: 60px;
@@ -400,6 +401,17 @@
         @keyframes bannerPulse {
             0% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.1); border-color: rgba(255, 215, 0, 0.3); }
             100% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.6); border-color: rgba(255, 215, 0, 1); }
+        }
+
+        /* CONTAINER DO SOCIAL BAR NO MENU */
+        #menu-social-ad-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 120px; /* Altura segura para Social Bar */
+            z-index: 105;
+            pointer-events: auto; /* Permite interagir com o anúncio */
         }
 
         .desktop-only { display: inline; }
@@ -512,13 +524,14 @@
                 margin-top: 5px;
             }
 
-            /* No celular o banner 468px precisa escalar para baixo pra não estourar a tela */
             .ad-scaler {
                 transform: scale(0.7);
             }
+            
+            /* Sobe um pouco a info para não chocar com o anúncio no celular */
+            #screen-menu { justify-content: flex-start; padding-top: 50px; }
         }
         
-        /* Ajuste fino para celulares muito pequenos (iPhone SE) */
         @media (max-width: 400px) {
             .ad-scaler { transform: scale(0.65); }
         }
@@ -580,6 +593,9 @@
                     <li><kbd>ESC</kbd> Pausar Jogo</li>
                 </ul>
             </div>
+            
+            <!-- CONTAINER EXCLUSIVO PARA O SOCIAL BAR (Apenas no Menu) -->
+            <div id="menu-social-ad-container"></div>
         </div>
 
         <div id="screen-paused" class="screen hidden">
@@ -590,7 +606,6 @@
                 para retornar à batalha.
             </p>
 
-            <!-- CAIXA DE ANÚNCIO PROFISSIONAL (NATIVE BANNER) - MANTIDO NO PAUSE -->
             <div class="ad-box">
                 <div class="ad-label">Publicidade</div>
                 <script async="async" data-cfasync="false" src="https://pl29129303.profitablecpmratenetwork.com/ae6aa2a13aff747c67b357b6561d5ede/invoke.js"></script>
@@ -605,7 +620,6 @@
             <p id="gameover-text">A arena cobrou seu preço na Fase X.</p>
             <button class="btn" onclick="game.resetToMenu()">Retornar ao Menu <span class="desktop-only">(R)</span></button>
             
-            <!-- CAIXA DO BANNER 468x60 (Game Over) -->
             <div id="ad-box-gameover" class="ad-banner-box hidden">
                 <div class="ad-label gold">Patrocinador</div>
                 <div class="ad-scaler" id="ad-container-gameover"></div>
@@ -625,7 +639,6 @@
 
             <button class="btn" style="border-color: var(--boss); color: var(--boss);" onclick="game.resetToMenu()">Concluir <span class="desktop-only">(R)</span></button>
             
-            <!-- CAIXA DO BANNER 468x60 (Vitória) -->
             <div id="ad-box-victory" class="ad-banner-box hidden">
                 <div class="ad-label gold">Patrocinador</div>
                 <div class="ad-scaler" id="ad-container-victory"></div>
@@ -708,7 +721,7 @@
         });
 
         document.addEventListener('mousedown', (e) => {
-            if (e.target.tagName === 'BUTTON' || e.target.closest('#mobile-controls')) return;
+            if (e.target.tagName === 'BUTTON' || e.target.closest('#mobile-controls') || e.target.closest('.ad-box')) return;
             if (gameState === "GAMEPLAY" && e.button === 0) {
                 if (!game.player.isDead()) game.player.defend();
             }
@@ -772,7 +785,7 @@
             random: (min, max) => Math.random() * (max - min) + min
         };
 
-        // INJEÇÃO SEGURA DO ANÚNCIO VIA IFRAME DINÂMICO PARA SPAs
+        // INJEÇÃO SEGURA DO ANÚNCIO VIA IFRAME DINÂMICO (Banners)
         function injectBannerAd(containerId) {
             const container = document.getElementById(containerId);
             if (!container) return;
@@ -787,7 +800,6 @@
             iframe.style.overflow = "hidden";
             iframe.style.background = "transparent";
             
-            // O código do anúncio é jogado dentro do iframe de forma isolada
             const adHtml = `
             <!DOCTYPE html>
             <html>
@@ -1799,11 +1811,14 @@
             
             stats: { startTime: 0, kills: 0, parries: 0, dmg: 0 },
 
-            // CONTROLE DE ANÚNCIOS (Frequência e Cooldown)
-            adViews: 0,
-            adCooldown: false,
+            // CONTROLE DE ANÚNCIOS (Menu Social Bar)
+            socialAdViews: 0,
+            socialAdCooldown: false,
 
-            // Adaptado para qualquer tamanho de tela - Celular (Vertical) ou PC (Horizontal)
+            // CONTROLE DE ANÚNCIOS (Game Over / Vitória Banner)
+            bannerAdViews: 0,
+            bannerAdCooldown: false,
+
             _X: function(slot) { return IS_MOBILE ? [0, GAME_WIDTH*0.5-20, GAME_WIDTH*0.2, GAME_WIDTH*0.8, GAME_WIDTH*0.5-20][slot] : [0, GAME_WIDTH*0.8, GAME_WIDTH*0.7, GAME_WIDTH*0.7, GAME_WIDTH*0.85][slot]; },
             _Y: function(slot) { return IS_MOBILE ? [0, GAME_HEIGHT*0.7, GAME_HEIGHT*0.85, GAME_HEIGHT*0.85, GAME_HEIGHT*0.9][slot] : [0, GAME_HEIGHT*0.5, GAME_HEIGHT*0.3, GAME_HEIGHT*0.7, GAME_HEIGHT*0.5][slot]; },
 
@@ -1818,7 +1833,92 @@
                 { id: 8, pHP: 100, title: "Supremacia", desc: "Ele aprende. Mude sua estratégia a cada 40 de HP.", spawn: () => [new Enemy('boss', game._X(1), game._Y(1), 120)] }
             ],
 
+            // GERENCIAMENTO EXCLUSIVO DO SOCIAL BAR DO MENU
+            handleMenuAdCycle() {
+                const container = document.getElementById('menu-social-ad-container');
+                if (!container) return;
+                
+                if (this.socialAdCooldown) {
+                    container.innerHTML = '';
+                    return;
+                }
+
+                container.innerHTML = ''; 
+                
+                const iframe = document.createElement('iframe');
+                iframe.width = "100%";
+                iframe.height = "100%";
+                iframe.frameBorder = "0";
+                iframe.scrolling = "no";
+                iframe.style.border = "none";
+                iframe.style.background = "transparent";
+                
+                const adHtml = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>body{margin:0;padding:0;background:transparent;overflow:hidden;}</style>
+                </head>
+                <body>
+                    <script src="https://pl29129272.profitablecpmratenetwork.com/a3/64/2f/a3642fda0090f8307f41daf727d26c7d.js"><\/script>
+                </body>
+                </html>`;
+                
+                container.appendChild(iframe);
+                const doc = iframe.contentWindow.document;
+                doc.open();
+                doc.write(adHtml);
+                doc.close();
+
+                this.socialAdViews++;
+                if (this.socialAdViews >= 4) {
+                    this.socialAdCooldown = true;
+                    this.socialAdViews = 0; 
+                    
+                    // 10 Minutos de Cooldown (600.000 ms)
+                    setTimeout(() => {
+                        this.socialAdCooldown = false;
+                        if (gameState === "MENU") {
+                            this.handleMenuAdCycle();
+                        }
+                    }, 600000);
+                }
+            },
+
+            clearMenuAd() {
+                const container = document.getElementById('menu-social-ad-container');
+                if (container) container.innerHTML = '';
+            },
+
+            // GERENCIAMENTO EXCLUSIVO DO BANNER 468x60 (Game Over / Vitória)
+            handleBannerAdCycle(containerId, boxId) {
+                const box = document.getElementById(boxId);
+                const container = document.getElementById(containerId);
+                
+                if (this.bannerAdCooldown) {
+                    box.classList.add('hidden');
+                    container.innerHTML = '';
+                    return;
+                }
+                
+                box.classList.remove('hidden');
+                injectBannerAd(containerId);
+                
+                this.bannerAdViews++;
+                if (this.bannerAdViews >= 3) {
+                    this.bannerAdCooldown = true;
+                    this.bannerAdViews = 0; 
+                    
+                    // 5 Minutos de Cooldown (300.000 ms) para os Banners
+                    setTimeout(() => {
+                        this.bannerAdCooldown = false;
+                    }, 300000);
+                }
+            },
+
             start() {
+                this.clearMenuAd(); // Remove o Social Bar imediatamente ao iniciar
+                
                 gameState = "GAMEPLAY";
                 this.stats = { startTime: Date.now(), kills: 0, parries: 0, dmg: 0 };
                 document.getElementById('screen-menu').classList.add('hidden');
@@ -1850,40 +1950,12 @@
                 document.getElementById('hud').classList.add('hidden');
                 document.getElementById('screen-menu').classList.remove('hidden');
                 
-                // Limpa o anúncio do iframe para liberar a memória enquanto joga
                 const gameoverAd = document.getElementById('ad-container-gameover');
                 const victoryAd = document.getElementById('ad-container-victory');
                 if (gameoverAd) gameoverAd.innerHTML = '';
                 if (victoryAd) victoryAd.innerHTML = '';
-            },
 
-            // Sistema Integrado de Ciclo de Anúncios (3 exibições, depois descansa por 5 min)
-            handleAdCycle(containerId, boxId) {
-                const box = document.getElementById(boxId);
-                const container = document.getElementById(containerId);
-                
-                // Se estiver no cooldown de 5 minutos, esconde a caixa completamente
-                if (this.adCooldown) {
-                    box.classList.add('hidden');
-                    container.innerHTML = '';
-                    return;
-                }
-                
-                // Exibe a caixa de anúncio e injeta
-                box.classList.remove('hidden');
-                injectBannerAd(containerId);
-                
-                this.adViews++;
-                // Se o jogador viu o anúncio pela terceira vez, iniciamos o descanso
-                if (this.adViews >= 3) {
-                    this.adCooldown = true;
-                    this.adViews = 0; // Prepara para reiniciar a contagem futuramente
-                    
-                    // 300000 milissegundos = 5 minutos exatos
-                    setTimeout(() => {
-                        this.adCooldown = false;
-                    }, 300000);
-                }
+                this.handleMenuAdCycle(); // Reativa/Analisa o Social Bar ao voltar pro menu
             },
 
             triggerGameOver() {
@@ -1891,7 +1963,7 @@
                 document.getElementById('gameover-text').innerText = `A arena cobrou seu preço na Fase ${this.currentPhase}.`;
                 setTimeout(() => { 
                     document.getElementById('screen-gameover').classList.remove('hidden'); 
-                    this.handleAdCycle('ad-container-gameover', 'ad-box-gameover');
+                    this.handleBannerAdCycle('ad-container-gameover', 'ad-box-gameover');
                 }, 1000);
             },
 
@@ -1906,7 +1978,7 @@
                 document.getElementById('stat-parries').innerText = `Parries Perfeitos: ${this.stats.parries}`;
                 document.getElementById('stat-dmg').innerText = `Dano Causado: ${this.stats.dmg}`;
                 
-                this.handleAdCycle('ad-container-victory', 'ad-box-victory');
+                this.handleBannerAdCycle('ad-container-victory', 'ad-box-victory');
             },
 
             startPhase(pNum) {
@@ -2074,6 +2146,9 @@
                 requestAnimationFrame((ts) => this.loop(ts));
             }
         };
+
+        // Inicializa o Social Bar do Menu no primeiro load
+        game.handleMenuAdCycle();
 
     </script>
 </body>
