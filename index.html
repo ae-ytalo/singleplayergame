@@ -25,7 +25,6 @@
             -webkit-user-select: none;
         }
 
-        /* Flexbox perfeito no corpo para evitar a barra de navegação cortar os controles */
         body, html {
             background-color: #000;
             color: #fff;
@@ -38,9 +37,8 @@
             touch-action: none; 
         }
 
-        /* O Wrapper engloba o canvas e gerencia o tamanho livre */
         #game-wrapper {
-            flex: 1; /* No PC ocupa 100% da tela */
+            flex: 1; 
             width: 100%;
             position: relative;
             display: flex;
@@ -52,7 +50,6 @@
         #gameCanvas {
             box-shadow: 0 0 50px rgba(0,0,0,0.8) inset;
             display: block;
-            /* Resolução física vs estilo são calculados no JS para Ultra HD */
         }
 
         #ui-layer {
@@ -327,7 +324,9 @@
             color: #fff;
         }
 
-        /* ESTILOS DO ANÚNCIO NO PAUSE */
+        /* ========================================================
+           ESTILOS DO ANÚNCIO (BANNER HORIZONTAL) NAS TELAS FINAIS
+           ======================================================== */
         .ad-box {
             margin: 20px 0;
             padding: 15px;
@@ -345,6 +344,23 @@
             z-index: 105;
         }
 
+        .ad-banner-box {
+            margin-top: 30px;
+            padding: 10px;
+            border: 2px solid var(--boss);
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.8);
+            position: relative;
+            animation: bannerPulse 2s infinite alternate;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 105;
+            overflow: hidden; /* Mantém o banner contido no mobile */
+            max-width: 95vw;
+        }
+
         .ad-label {
             position: absolute;
             top: -10px;
@@ -360,9 +376,30 @@
             box-shadow: 0 0 10px rgba(0, 255, 204, 0.3);
         }
 
+        .ad-label.gold {
+            color: var(--boss);
+            border-color: var(--boss);
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+
+        /* Container escalável para o anúncio 468x60 caber em telas estreitas de celular */
+        .ad-scaler {
+            width: 468px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transform-origin: center center;
+        }
+
         @keyframes adPulse {
             0% { box-shadow: 0 0 10px rgba(0, 255, 204, 0.1); border-color: rgba(0, 255, 204, 0.3); }
             100% { box-shadow: 0 0 30px rgba(0, 255, 204, 0.6); border-color: rgba(0, 255, 204, 1); }
+        }
+
+        @keyframes bannerPulse {
+            0% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.1); border-color: rgba(255, 215, 0, 0.3); }
+            100% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.6); border-color: rgba(255, 215, 0, 1); }
         }
 
         .desktop-only { display: inline; }
@@ -380,12 +417,12 @@
 
         @media (max-width: 850px), (orientation: portrait) {
             #game-wrapper {
-                flex: 0 0 75dvh; /* Exatos 75% da altura garantidos */
+                flex: 0 0 75dvh; 
             }
 
             #mobile-controls {
                 display: flex;
-                flex: 0 0 25dvh; /* Exatos 25% da altura inferior garantidos */
+                flex: 0 0 25dvh; 
                 width: 100vw;
                 background: #0d0d14;
                 border-top: 2px solid var(--boss);
@@ -397,7 +434,6 @@
             .desktop-only { display: none; }
             .mobile-only { display: inline; }
 
-            /* Esquerda: Botões (Menores em proporção para não sobrepor) */
             .mobile-actions {
                 width: 55%;
                 display: flex;
@@ -424,7 +460,6 @@
             .m-defend { width: min(65px, 11dvh); height: min(65px, 11dvh); background: rgba(50, 150, 255, 0.7); font-size: 11px; border: 2px solid #aaddff;}
             .m-dash   { width: min(65px, 11dvh); height: min(65px, 11dvh); background: rgba(50, 255, 100, 0.7); font-size: 11px; border: 2px solid #aaffcc;}
 
-            /* Direita: Analógico Joystick */
             .mobile-joystick {
                 width: 45%;
                 display: flex;
@@ -476,6 +511,16 @@
                 font-size: 12px;
                 margin-top: 5px;
             }
+
+            /* No celular o banner 468px precisa escalar para baixo pra não estourar a tela */
+            .ad-scaler {
+                transform: scale(0.7);
+            }
+        }
+        
+        /* Ajuste fino para celulares muito pequenos (iPhone SE) */
+        @media (max-width: 400px) {
+            .ad-scaler { transform: scale(0.65); }
         }
     </style>
 </head>
@@ -545,7 +590,7 @@
                 para retornar à batalha.
             </p>
 
-            <!-- CAIXA DE ANÚNCIO PROFISSIONAL (NATIVE BANNER) -->
+            <!-- CAIXA DE ANÚNCIO PROFISSIONAL (NATIVE BANNER) - MANTIDO NO PAUSE -->
             <div class="ad-box">
                 <div class="ad-label">Publicidade</div>
                 <script async="async" data-cfasync="false" src="https://pl29129303.profitablecpmratenetwork.com/ae6aa2a13aff747c67b357b6561d5ede/invoke.js"></script>
@@ -559,6 +604,12 @@
             <h2>VOCÊ MORREU</h2>
             <p id="gameover-text">A arena cobrou seu preço na Fase X.</p>
             <button class="btn" onclick="game.resetToMenu()">Retornar ao Menu <span class="desktop-only">(R)</span></button>
+            
+            <!-- CAIXA DO BANNER 468x60 (Game Over) -->
+            <div id="ad-box-gameover" class="ad-banner-box hidden">
+                <div class="ad-label gold">Patrocinador</div>
+                <div class="ad-scaler" id="ad-container-gameover"></div>
+            </div>
         </div>
 
         <div id="screen-victory" class="screen hidden">
@@ -573,6 +624,12 @@
             </div>
 
             <button class="btn" style="border-color: var(--boss); color: var(--boss);" onclick="game.resetToMenu()">Concluir <span class="desktop-only">(R)</span></button>
+            
+            <!-- CAIXA DO BANNER 468x60 (Vitória) -->
+            <div id="ad-box-victory" class="ad-banner-box hidden">
+                <div class="ad-label gold">Patrocinador</div>
+                <div class="ad-scaler" id="ad-container-victory"></div>
+            </div>
         </div>
 
     </div>
@@ -586,46 +643,33 @@
         let GAME_HEIGHT = 720;
         let IS_MOBILE = false;
 
-        // RESOLUÇÃO DE ALTA QUALIDADE E CÂMERA DINÂMICA:
-        // Essa nova lógica faz a arena se moldar perfeitamente sem espaços extras laterais, 
-        // escalando os pixels internos para Full HD / Retina Displays
         function resize() {
-            // Pega o espaço puramente em CSS disponível para a arena
             const availableW = gameWrapper.clientWidth;
             const availableH = gameWrapper.clientHeight;
             
             IS_MOBILE = availableW < availableH;
             
-            // Auto-ajuste de Proporção para não ter tela sobrando e nem personagens esmagados
             if (IS_MOBILE) {
-                // Tranca a largura, altura cresce infinitamente pra caber na tela
                 GAME_WIDTH = 720;
                 GAME_HEIGHT = 720 * (availableH / availableW);
             } else {
-                // Tranca a altura, largura cresce para abraçar monitores Widescreen
                 GAME_HEIGHT = 720;
                 GAME_WIDTH = 720 * (availableW / availableH);
             }
 
-            // High DPI - O Segredo da Resolução Perfeita sem Borrões
             const dpr = window.devicePixelRatio || 1;
-            
-            // O Canvas físico ganha um número maciço de pixels
             canvas.width = availableW * dpr;
             canvas.height = availableH * dpr;
-            
-            // Mas em tela ele ocupa certinho o espaço via CSS
             canvas.style.width = `${availableW}px`;
             canvas.style.height = `${availableH}px`;
 
-            // Mágica para nós desenharmos de forma fácil ignorando a complexidade das telas
             const scaleX = (availableW * dpr) / GAME_WIDTH;
             const scaleY = (availableH * dpr) / GAME_HEIGHT;
             
             ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
         }
         window.addEventListener('resize', resize);
-        resize(); // Inicia logo ao carregar a página
+        resize(); 
 
         let gameState = "MENU";
         let keysPressed = {};
@@ -727,6 +771,49 @@
             rectIntersect: (r1, r2) => !(r2.x > r1.x + r1.w || r2.x + r2.w < r1.x || r2.y > r1.y + r1.h || r2.y + r2.h < r1.y),
             random: (min, max) => Math.random() * (max - min) + min
         };
+
+        // INJEÇÃO SEGURA DO ANÚNCIO VIA IFRAME DINÂMICO PARA SPAs
+        function injectBannerAd(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.innerHTML = ''; 
+
+            const iframe = document.createElement('iframe');
+            iframe.width = "468";
+            iframe.height = "60";
+            iframe.frameBorder = "0";
+            iframe.scrolling = "no";
+            iframe.style.border = "none";
+            iframe.style.overflow = "hidden";
+            iframe.style.background = "transparent";
+            
+            // O código do anúncio é jogado dentro do iframe de forma isolada
+            const adHtml = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>body{margin:0;padding:0;background:transparent;display:flex;justify-content:center;align-items:center;}</style>
+            </head>
+            <body>
+                <script>
+                  atOptions = {
+                    'key' : '861c2b2a4cdfd6409a3b73c48fdd0bb3',
+                    'format' : 'iframe',
+                    'height' : 60,
+                    'width' : 468,
+                    'params' : {}
+                  };
+                <\/script>
+                <script src="https://www.highperformanceformat.com/861c2b2a4cdfd6409a3b73c48fdd0bb3/invoke.js"><\/script>
+            </body>
+            </html>`;
+            
+            container.appendChild(iframe);
+            const doc = iframe.contentWindow.document;
+            doc.open();
+            doc.write(adHtml);
+            doc.close();
+        }
 
         class Particle {
             constructor(x, y, color, speed, size, life) {
@@ -1343,7 +1430,6 @@
                     return; 
                 }
 
-                // Ajustado para manter IA viva em mapas muito alongados (Ultrawide Desktop ou Portrait Mobile longo)
                 if (dist > Math.max(GAME_WIDTH, GAME_HEIGHT) + 200) { this.state = 'IDLE'; return; }
 
                 this.state = 'RUN';
@@ -1713,6 +1799,10 @@
             
             stats: { startTime: 0, kills: 0, parries: 0, dmg: 0 },
 
+            // CONTROLE DE ANÚNCIOS (Frequência e Cooldown)
+            adViews: 0,
+            adCooldown: false,
+
             // Adaptado para qualquer tamanho de tela - Celular (Vertical) ou PC (Horizontal)
             _X: function(slot) { return IS_MOBILE ? [0, GAME_WIDTH*0.5-20, GAME_WIDTH*0.2, GAME_WIDTH*0.8, GAME_WIDTH*0.5-20][slot] : [0, GAME_WIDTH*0.8, GAME_WIDTH*0.7, GAME_WIDTH*0.7, GAME_WIDTH*0.85][slot]; },
             _Y: function(slot) { return IS_MOBILE ? [0, GAME_HEIGHT*0.7, GAME_HEIGHT*0.85, GAME_HEIGHT*0.85, GAME_HEIGHT*0.9][slot] : [0, GAME_HEIGHT*0.5, GAME_HEIGHT*0.3, GAME_HEIGHT*0.7, GAME_HEIGHT*0.5][slot]; },
@@ -1759,12 +1849,50 @@
                 document.getElementById('screen-victory').classList.add('hidden');
                 document.getElementById('hud').classList.add('hidden');
                 document.getElementById('screen-menu').classList.remove('hidden');
+                
+                // Limpa o anúncio do iframe para liberar a memória enquanto joga
+                const gameoverAd = document.getElementById('ad-container-gameover');
+                const victoryAd = document.getElementById('ad-container-victory');
+                if (gameoverAd) gameoverAd.innerHTML = '';
+                if (victoryAd) victoryAd.innerHTML = '';
+            },
+
+            // Sistema Integrado de Ciclo de Anúncios (3 exibições, depois descansa por 5 min)
+            handleAdCycle(containerId, boxId) {
+                const box = document.getElementById(boxId);
+                const container = document.getElementById(containerId);
+                
+                // Se estiver no cooldown de 5 minutos, esconde a caixa completamente
+                if (this.adCooldown) {
+                    box.classList.add('hidden');
+                    container.innerHTML = '';
+                    return;
+                }
+                
+                // Exibe a caixa de anúncio e injeta
+                box.classList.remove('hidden');
+                injectBannerAd(containerId);
+                
+                this.adViews++;
+                // Se o jogador viu o anúncio pela terceira vez, iniciamos o descanso
+                if (this.adViews >= 3) {
+                    this.adCooldown = true;
+                    this.adViews = 0; // Prepara para reiniciar a contagem futuramente
+                    
+                    // 300000 milissegundos = 5 minutos exatos
+                    setTimeout(() => {
+                        this.adCooldown = false;
+                    }, 300000);
+                }
             },
 
             triggerGameOver() {
                 gameState = "GAME_OVER";
                 document.getElementById('gameover-text').innerText = `A arena cobrou seu preço na Fase ${this.currentPhase}.`;
-                setTimeout(() => { document.getElementById('screen-gameover').classList.remove('hidden'); }, 1000);
+                setTimeout(() => { 
+                    document.getElementById('screen-gameover').classList.remove('hidden'); 
+                    this.handleAdCycle('ad-container-gameover', 'ad-box-gameover');
+                }, 1000);
             },
 
             winGame() {
@@ -1777,6 +1905,8 @@
                 document.getElementById('stat-kills').innerText = `Abates Totais: ${this.stats.kills}`;
                 document.getElementById('stat-parries').innerText = `Parries Perfeitos: ${this.stats.parries}`;
                 document.getElementById('stat-dmg').innerText = `Dano Causado: ${this.stats.dmg}`;
+                
+                this.handleAdCycle('ad-container-victory', 'ad-box-victory');
             },
 
             startPhase(pNum) {
@@ -1794,7 +1924,6 @@
                 this.player.maxHp = pData.pHP;
                 this.player.hp = pData.pHP;
                 
-                // Nasce no Topo do Celular ou Esquerda do PC
                 this.player.x = IS_MOBILE ? GAME_WIDTH / 2 - 20 : GAME_WIDTH * 0.15;
                 this.player.y = IS_MOBILE ? GAME_HEIGHT * 0.15 : GAME_HEIGHT / 2 - 20;
                 
