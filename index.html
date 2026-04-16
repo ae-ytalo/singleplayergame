@@ -606,10 +606,10 @@
                 para retornar à batalha.
             </p>
 
-            <div class="ad-box">
+            <!-- CAIXA DE ANÚNCIO PROFISSIONAL (NATIVE BANNER) - AGORA DINÂMICA -->
+            <div id="pause-ad-box" class="ad-box hidden">
                 <div class="ad-label">Publicidade</div>
-                <script async="async" data-cfasync="false" src="https://pl29129303.profitablecpmratenetwork.com/ae6aa2a13aff747c67b357b6561d5ede/invoke.js"></script>
-                <div id="container-ae6aa2a13aff747c67b357b6561d5ede"></div>
+                <div id="ad-container-pause" style="width: 100%; min-height: 200px;"></div>
             </div>
 
             <button class="btn" style="margin-top: 20px;" onclick="game.togglePause()">Continuar</button>
@@ -817,6 +817,40 @@
                   };
                 <\/script>
                 <script src="https://www.highperformanceformat.com/861c2b2a4cdfd6409a3b73c48fdd0bb3/invoke.js"><\/script>
+            </body>
+            </html>`;
+            
+            container.appendChild(iframe);
+            const doc = iframe.contentWindow.document;
+            doc.open();
+            doc.write(adHtml);
+            doc.close();
+        }
+
+        // INJEÇÃO SEGURA DO NATIVE BANNER (TELA DE PAUSE)
+        function injectNativeBannerAd(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.innerHTML = ''; 
+
+            const iframe = document.createElement('iframe');
+            iframe.width = "100%";
+            iframe.height = "100%";
+            iframe.frameBorder = "0";
+            iframe.scrolling = "no";
+            iframe.style.border = "none";
+            iframe.style.overflow = "hidden";
+            iframe.style.background = "transparent";
+            
+            const adHtml = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>body{margin:0;padding:0;background:transparent;display:flex;justify-content:center;align-items:center;}</style>
+            </head>
+            <body>
+                <script async="async" data-cfasync="false" src="https://pl29129303.profitablecpmratenetwork.com/ae6aa2a13aff747c67b357b6561d5ede/invoke.js"><\/script>
+                <div id="container-ae6aa2a13aff747c67b357b6561d5ede"></div>
             </body>
             </html>`;
             
@@ -1819,6 +1853,10 @@
             bannerAdViews: 0,
             bannerAdCooldown: false,
 
+            // CONTROLE DE ANÚNCIOS (Native Banner / Pause)
+            pauseAdViews: 0,
+            pauseAdCooldown: false,
+
             _X: function(slot) { return IS_MOBILE ? [0, GAME_WIDTH*0.5-20, GAME_WIDTH*0.2, GAME_WIDTH*0.8, GAME_WIDTH*0.5-20][slot] : [0, GAME_WIDTH*0.8, GAME_WIDTH*0.7, GAME_WIDTH*0.7, GAME_WIDTH*0.85][slot]; },
             _Y: function(slot) { return IS_MOBILE ? [0, GAME_HEIGHT*0.7, GAME_HEIGHT*0.85, GAME_HEIGHT*0.85, GAME_HEIGHT*0.9][slot] : [0, GAME_HEIGHT*0.5, GAME_HEIGHT*0.3, GAME_HEIGHT*0.7, GAME_HEIGHT*0.5][slot]; },
 
@@ -1916,6 +1954,36 @@
                 }
             },
 
+            // GERENCIAMENTO EXCLUSIVO DO NATIVE BANNER (Pause)
+            handlePauseAdCycle() {
+                const box = document.getElementById('pause-ad-box');
+                const container = document.getElementById('ad-container-pause');
+                
+                // Se estiver no cooldown, esconde a caixa e ajusta o layout (sem buracos)
+                if (this.pauseAdCooldown) {
+                    box.classList.add('hidden');
+                    container.innerHTML = '';
+                    return;
+                }
+                
+                // Mostra a caixa neon e injeta o anúncio
+                box.classList.remove('hidden');
+                injectNativeBannerAd('ad-container-pause');
+                
+                this.pauseAdViews++;
+                
+                // Se viu 2 vezes, remove por 6 minutos
+                if (this.pauseAdViews >= 2) {
+                    this.pauseAdCooldown = true;
+                    this.pauseAdViews = 0; 
+                    
+                    // 6 Minutos de Cooldown (360.000 ms)
+                    setTimeout(() => {
+                        this.pauseAdCooldown = false;
+                    }, 360000);
+                }
+            },
+
             start() {
                 this.clearMenuAd(); // Remove o Social Bar imediatamente ao iniciar
                 
@@ -1936,9 +2004,15 @@
                 if (gameState === "GAMEPLAY") {
                     gameState = "PAUSED";
                     document.getElementById('screen-paused').classList.remove('hidden');
+                    this.handlePauseAdCycle(); // Tenta carregar o anúncio do Pause
                 } else if (gameState === "PAUSED") {
                     gameState = "GAMEPLAY";
                     document.getElementById('screen-paused').classList.add('hidden');
+                    
+                    // Destrói o iframe de anúncio da memória enquanto joga
+                    const pauseAd = document.getElementById('ad-container-pause');
+                    if (pauseAd) pauseAd.innerHTML = '';
+                    
                     this.lastTime = performance.now();
                 }
             },
