@@ -338,12 +338,16 @@
             position: relative;
             animation: adPulse 2s infinite alternate;
             min-width: min(320px, 90vw);
-            min-height: 80px;
             display: flex;
             justify-content: center;
             align-items: center;
             flex-direction: column;
             z-index: 105;
+        }
+
+        #ad-container-pause {
+            width: 100%; 
+            min-height: 200px;
         }
 
         .ad-banner-box {
@@ -403,15 +407,14 @@
             100% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.6); border-color: rgba(255, 215, 0, 1); }
         }
 
-        /* CONTAINER DO SOCIAL BAR NO MENU */
         #menu-social-ad-container {
             position: absolute;
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 120px; /* Altura segura para Social Bar */
+            height: 120px; 
             z-index: 105;
-            pointer-events: auto; /* Permite interagir com o anúncio */
+            pointer-events: auto; 
         }
 
         .desktop-only { display: inline; }
@@ -430,6 +433,12 @@
         @media (max-width: 850px), (orientation: portrait) {
             #game-wrapper {
                 flex: 0 0 75dvh; 
+            }
+
+            /* LIMITA AS TELAS DE MENU/PAUSE/MORTE PARA DENTRO DA ARENA (75%) */
+            /* Evita que fiquem por trás dos botões do celular! */
+            #ui-layer {
+                height: 75dvh; 
             }
 
             #mobile-controls {
@@ -500,12 +509,15 @@
                 box-shadow: 0 0 15px rgba(0,255,204,0.5);
             }
 
-            h1 { font-size: 2.2rem; }
-            h2 { font-size: 1.8rem; }
-            .alpha-subtitle { font-size: 1.1rem; }
-            p { font-size: 1rem; }
+            /* REAJUSTE SEGURO DOS TEXTOS PARA NÃO SEREM ESMAGADOS */
+            h1 { font-size: 2rem; margin-bottom: 5px; }
+            h2 { font-size: 1.6rem; margin-bottom: 5px; }
+            .alpha-subtitle { font-size: 1rem; margin-bottom: 10px; }
+            p { font-size: 0.9rem; margin-bottom: 10px; }
             .controls-info { display: none; } 
             
+            .btn { margin-top: 5px !important; padding: 10px 25px; font-size: 1.2rem; }
+
             .hud { padding: 10px; }
             .health-bar-container, .stamina-bar-container { width: 140px; }
             .phase-counter { font-size: 22px; }
@@ -524,16 +536,38 @@
                 margin-top: 5px;
             }
 
-            .ad-scaler {
-                transform: scale(0.7);
+            /* ESCALONAMENTO E MARGENS PARA CAIXA DE ANÚNCIO MOBILE */
+            .ad-box {
+                transform: scale(0.8);
+                margin: -5px 0; /* Previne que o layout empurre o botão pra fora */
+                padding: 5px;
             }
-            
-            /* Sobe um pouco a info para não chocar com o anúncio no celular */
-            #screen-menu { justify-content: flex-start; padding-top: 50px; }
+            #ad-container-pause {
+                min-height: 120px !important; /* Diminui a exigência de altura pro Native Ads no celular */
+            }
+
+            .ad-banner-box {
+                transform: scale(0.65);
+                margin: -10px 0; /* Espaço ganho com a redução visual */
+            }
+
+            .stats-grid {
+                margin-bottom: 5px;
+                gap: 10px;
+                padding: 10px;
+            }
+            .stats-grid div {
+                font-size: 1rem;
+            }
+
+            /* Levanta levemente o menu pra não bater no Social Bar */
+            #screen-menu { padding-bottom: 80px; justify-content: center; }
         }
         
+        /* Ajuste fino para celulares muito pequenos (iPhone SE, etc) */
         @media (max-width: 400px) {
-            .ad-scaler { transform: scale(0.65); }
+            .ad-banner-box { transform: scale(0.55); margin: -15px 0; }
+            .ad-box { transform: scale(0.7); margin: -10px 0; }
         }
     </style>
 </head>
@@ -609,10 +643,10 @@
             <!-- CAIXA DE ANÚNCIO PROFISSIONAL (NATIVE BANNER) - AGORA DINÂMICA -->
             <div id="pause-ad-box" class="ad-box hidden">
                 <div class="ad-label">Publicidade</div>
-                <div id="ad-container-pause" style="width: 100%; min-height: 200px;"></div>
+                <div id="ad-container-pause"></div>
             </div>
 
-            <button class="btn" style="margin-top: 20px;" onclick="game.togglePause()">Continuar</button>
+            <button class="btn" onclick="game.togglePause()">Continuar</button>
         </div>
 
         <div id="screen-gameover" class="screen hidden">
@@ -721,7 +755,7 @@
         });
 
         document.addEventListener('mousedown', (e) => {
-            if (e.target.tagName === 'BUTTON' || e.target.closest('#mobile-controls') || e.target.closest('.ad-box')) return;
+            if (e.target.tagName === 'BUTTON' || e.target.closest('#mobile-controls') || e.target.closest('.ad-box') || e.target.closest('.ad-banner-box')) return;
             if (gameState === "GAMEPLAY" && e.button === 0) {
                 if (!game.player.isDead()) game.player.defend();
             }
@@ -1913,7 +1947,6 @@
                     this.socialAdCooldown = true;
                     this.socialAdViews = 0; 
                     
-                    // 10 Minutos de Cooldown (600.000 ms)
                     setTimeout(() => {
                         this.socialAdCooldown = false;
                         if (gameState === "MENU") {
@@ -1947,7 +1980,6 @@
                     this.bannerAdCooldown = true;
                     this.bannerAdViews = 0; 
                     
-                    // 5 Minutos de Cooldown (300.000 ms) para os Banners
                     setTimeout(() => {
                         this.bannerAdCooldown = false;
                     }, 300000);
@@ -1985,7 +2017,7 @@
             },
 
             start() {
-                this.clearMenuAd(); // Remove o Social Bar imediatamente ao iniciar
+                this.clearMenuAd(); 
                 
                 gameState = "GAMEPLAY";
                 this.stats = { startTime: Date.now(), kills: 0, parries: 0, dmg: 0 };
@@ -2029,7 +2061,7 @@
                 if (gameoverAd) gameoverAd.innerHTML = '';
                 if (victoryAd) victoryAd.innerHTML = '';
 
-                this.handleMenuAdCycle(); // Reativa/Analisa o Social Bar ao voltar pro menu
+                this.handleMenuAdCycle(); 
             },
 
             triggerGameOver() {
